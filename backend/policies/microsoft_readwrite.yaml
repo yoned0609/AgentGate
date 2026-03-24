@@ -1,0 +1,46 @@
+# Microsoft Graph — Read + Create/Update, no Delete
+
+name: microsoft_readwrite
+description: "Read and create/update access to Microsoft Graph calendar, no delete"
+
+rules:
+  # Calendar events (read + create + update)
+  - resource: "/me/calendar/events"
+    methods: ["GET", "POST"]
+    effect: allow
+  - resource: "/me/calendar/events/*"
+    methods: ["GET", "PATCH"]
+    effect: allow
+  - resource: "/me/calendars"
+    methods: ["GET"]
+    effect: allow
+  - resource: "/me/calendar/calendarView"
+    methods: ["GET"]
+    effect: allow
+
+  # Mail (read + send)
+  - resource: "/me/messages"
+    methods: ["GET", "POST"]
+    effect: allow
+  - resource: "/me/messages/*"
+    methods: ["GET", "PATCH"]
+    effect: allow
+  - resource: "/me/sendMail"
+    methods: ["POST"]
+    effect: allow
+
+  # Deny delete
+  - resource: "/me/calendar/events/*"
+    methods: ["DELETE"]
+    effect: deny
+    reason: "Delete operations are not permitted under the microsoft_readwrite policy"
+  - resource: "/me/messages/*"
+    methods: ["DELETE"]
+    effect: deny
+    reason: "Delete operations are not permitted under the microsoft_readwrite policy"
+
+default_effect: deny
+default_reason: "No matching rule — denied by microsoft_readwrite policy"
+
+time_restrictions:
+  enabled: false

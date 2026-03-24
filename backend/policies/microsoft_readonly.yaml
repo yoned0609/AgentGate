@@ -1,0 +1,42 @@
+# Microsoft Graph — Read-only calendar & mail access
+
+name: microsoft_readonly
+description: "Read-only access to Microsoft Graph calendar and mail"
+
+rules:
+  # Calendar events (read)
+  - resource: "/me/calendar/events"
+    methods: ["GET"]
+    effect: allow
+  - resource: "/me/calendar/events/*"
+    methods: ["GET"]
+    effect: allow
+  - resource: "/me/calendars"
+    methods: ["GET"]
+    effect: allow
+  - resource: "/me/calendar/calendarView"
+    methods: ["GET"]
+    effect: allow
+
+  # Mail (read)
+  - resource: "/me/messages"
+    methods: ["GET"]
+    effect: allow
+  - resource: "/me/messages/*"
+    methods: ["GET"]
+    effect: allow
+  - resource: "/me/mailFolders"
+    methods: ["GET"]
+    effect: allow
+
+  # Deny all writes
+  - resource: "/me/*"
+    methods: ["POST", "PUT", "PATCH", "DELETE"]
+    effect: deny
+    reason: "Write operations are not permitted under the microsoft_readonly policy"
+
+default_effect: deny
+default_reason: "No matching rule — denied by microsoft_readonly policy"
+
+time_restrictions:
+  enabled: false

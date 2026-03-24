@@ -44,7 +44,7 @@ class AgentStore:
             encoding="utf-8",
         )
 
-    def create(self, name: str, description: str = "", policy: str = "default") -> AgentDict:
+    def create(self, name: str, description: str = "", policy: str = "default", provider: str = "google") -> AgentDict:
         """Register a new agent and return its data."""
         agent_id = str(uuid.uuid4())
         api_key = _generate_api_key()
@@ -54,6 +54,7 @@ class AgentStore:
             "description": description,
             "api_key": api_key,
             "policy": policy,
+            "provider": provider,
             "created_at": datetime.now(timezone.utc).isoformat(),
         }
         self._agents[agent_id] = agent

@@ -93,8 +93,21 @@ class PolicyEngine:
     def policy_names(self) -> list[str]:
         return list(self._policies.keys())
 
-    def evaluate(self, policy_name: str, method: str, path: str) -> PolicyDecision:
+    def evaluate(
+        self,
+        policy_name: str,
+        method: str,
+        path: str,
+        *,
+        intent: object | None = None,
+    ) -> PolicyDecision:
         """Evaluate a request against a named policy.
+
+        Args:
+            policy_name: Name of the policy to evaluate.
+            method: HTTP method.
+            path: Request path.
+            intent: Optional IntentResult for semantic rule evaluation.
 
         Returns a PolicyDecision with effect="allow" or effect="deny".
         """

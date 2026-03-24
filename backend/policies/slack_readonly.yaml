@@ -1,0 +1,74 @@
+# Slack — Read-only access (list channels, read messages, view users)
+
+name: slack_readonly
+description: "Read-only access to Slack — list channels, read history, view users"
+
+rules:
+  # Channel read operations (Slack uses POST for everything)
+  - resource: "/conversations.list"
+    methods: ["POST"]
+    effect: allow
+  - resource: "/conversations.info"
+    methods: ["POST"]
+    effect: allow
+  - resource: "/conversations.history"
+    methods: ["POST"]
+    effect: allow
+  - resource: "/conversations.members"
+    methods: ["POST"]
+    effect: allow
+
+  # User read operations
+  - resource: "/users.list"
+    methods: ["POST"]
+    effect: allow
+  - resource: "/users.info"
+    methods: ["POST"]
+    effect: allow
+  - resource: "/users.lookupByEmail"
+    methods: ["POST"]
+    effect: allow
+
+  # File read operations
+  - resource: "/files.list"
+    methods: ["POST"]
+    effect: allow
+  - resource: "/files.info"
+    methods: ["POST"]
+    effect: allow
+
+  # Reaction read
+  - resource: "/reactions.list"
+    methods: ["POST"]
+    effect: allow
+  - resource: "/reactions.get"
+    methods: ["POST"]
+    effect: allow
+
+  # Deny write operations
+  - resource: "/chat.postMessage"
+    methods: ["POST"]
+    effect: deny
+    reason: "Sending messages is not permitted under the slack_readonly policy"
+  - resource: "/chat.update"
+    methods: ["POST"]
+    effect: deny
+    reason: "Updating messages is not permitted under the slack_readonly policy"
+  - resource: "/chat.delete"
+    methods: ["POST"]
+    effect: deny
+    reason: "Deleting messages is not permitted under the slack_readonly policy"
+  - resource: "/files.upload"
+    methods: ["POST"]
+    effect: deny
+    reason: "Uploading files is not permitted under the slack_readonly policy"
+  - resource: "/files.delete"
+    methods: ["POST"]
+    effect: deny
+    reason: "Deleting files is not permitted under the slack_readonly policy"
+
+default_effect: deny
+default_reason: "No matching rule — denied by slack_readonly policy"
+
+time_restrictions:
+  enabled: false

@@ -13,6 +13,8 @@ from loguru import logger
 from .agents import AgentStore
 from .audit import AuditLogger
 from .config import settings
+from .connectors import available_providers
+from .intent import IntentAnalyzer
 from .middleware.security import SecurityHeadersMiddleware
 from .models import AgentCreate, AgentResponse, AuditLogList, HealthResponse, PolicyInfo
 from .policy import PolicyEngine
@@ -31,19 +33,21 @@ logger.add(_LOG_DIR / "agentgate_error.log", rotation="10 MB", retention="90 day
 policy_engine = PolicyEngine(policy_dir=settings.policy_dir)
 audit_logger = AuditLogger(db_path=settings.audit_db_path)
 agent_store = AgentStore()
+intent_analyzer = IntentAnalyzer()
 reverse_proxy = ReverseProxy(
-    target_base_url=settings.google_calendar_base_url,
     policy_engine=policy_engine,
     audit_logger=audit_logger,
+    intent_analyzer=intent_analyzer,
 )
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    providers = available_providers()
     logger.info("AgentGate starting up")
+    logger.info(f"Providers: {providers}")
     logger.info(f"Policies loaded: {policy_engine.policy_names}")
     logger.info(f"Agents registered: {agent_store.count}")
-    logger.info(f"Proxy target: {settings.google_calendar_base_url}")
     yield
     await reverse_proxy.close()
     logger.info("AgentGate shut down")
@@ -53,7 +57,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="AgentGate",
     description="JIT Authorization Proxy for AI Agents",
-    version="0.1.0",
+    version="0.2.0",
     docs_url="/docs" if settings.debug else None,
     redoc_url=None,
     lifespan=lifespan,
@@ -92,7 +96,8 @@ async def health():
     audit_ok = await audit_logger.is_healthy()
     return HealthResponse(
         status="ok" if audit_ok else "degraded",
-        version="0.1.0",
+        version="0.2.0",
+        providers=available_providers(),
         policy_loaded=len(policy_engine.policy_names) > 0,
         agents_count=agent_store.count,
         audit_db="ok" if audit_ok else "error",
@@ -103,8 +108,19 @@ async def health():
 @app.post("/agents", response_model=AgentResponse)
 async def create_agent(body: AgentCreate, _=Depends(_require_master)):
     if body.policy not in policy_engine.policy_names:
-        raise HTTPException(status_code=400, detail=f"Unknown policy: {body.policy}. Available: {policy_engine.policy_names}")
-    agent = agent_store.create(name=body.name, description=body.description, policy=body.policy)
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown policy: {body.policy}. Available: {policy_engine.policy_names}",
+        )
+    if body.provider not in available_providers():
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown provider: {body.provider}. Available: {available_providers()}",
+        )
+    agent = agent_store.create(
+        name=body.name, description=body.description,
+        policy=body.policy, provider=body.provider,
+    )
     return AgentResponse(**agent)
 
 
@@ -118,6 +134,12 @@ async def delete_agent(agent_id: str, _=Depends(_require_master)):
     if not agent_store.delete(agent_id):
         raise HTTPException(status_code=404, detail="Agent not found")
     return {"status": "deleted"}
+
+
+# ── Providers ────────────────────────────────────────────────────────
+@app.get("/providers")
+async def list_providers():
+    return {"providers": available_providers()}
 
 
 # ── Policy Info ──────────────────────────────────────────────────────
@@ -136,24 +158,29 @@ async def list_policies(_=Depends(_require_master)):
 async def get_audit_logs(
     agent_id: str | None = None,
     decision: str | None = None,
+    provider: str | None = None,
     limit: int = 50,
     offset: int = 0,
     _=Depends(_require_master),
 ):
     logs, total = await audit_logger.query(
-        agent_id=agent_id, decision=decision, limit=limit, offset=offset
+        agent_id=agent_id, decision=decision, provider=provider,
+        limit=limit, offset=offset,
     )
     return AuditLogList(logs=logs, total=total)
 
 
 # ── Proxy Endpoint (agent key required) ──────────────────────────────
-@app.api_route("/proxy/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"])
-async def proxy_request(request: Request, path: str):
+@app.api_route(
+    "/proxy/{provider}/{path:path}",
+    methods=["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"],
+)
+async def proxy_request(request: Request, provider: str, path: str):
     agent_key = _extract_agent_key(request)
     agent = agent_store.get_by_api_key(agent_key)
     if agent is None:
         raise HTTPException(status_code=401, detail="Invalid agent key")
-    return await reverse_proxy.handle(request, agent)
+    return await reverse_proxy.handle(request, agent, provider)
 
 
 # ── Root ─────────────────────────────────────────────────────────────
@@ -161,7 +188,8 @@ async def proxy_request(request: Request, path: str):
 async def root():
     return {
         "service": "AgentGate",
-        "version": "0.1.0",
+        "version": "0.2.0",
         "description": "JIT Authorization Proxy for AI Agents",
+        "providers": available_providers(),
         "docs": "/docs" if settings.debug else "disabled",
     }

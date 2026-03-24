@@ -9,6 +9,7 @@ class AgentCreate(BaseModel):
     name: str
     description: str = ""
     policy: str = "default"
+    provider: str = "google"
 
 
 class AgentResponse(BaseModel):
@@ -17,6 +18,7 @@ class AgentResponse(BaseModel):
     description: str
     api_key: str
     policy: str
+    provider: str
     created_at: str
 
 
@@ -27,8 +29,11 @@ class AuditLogEntry(BaseModel):
     agent_name: str
     method: str
     path: str
-    decision: str  # "allow" | "deny"
+    provider: str = ""
+    decision: str  # "allow" | "deny" | "error"
     deny_reason: str | None = None
+    intent: str = ""
+    intent_confidence: float = 0
     status_code: int | None = None
     latency_ms: float
     request_id: str
@@ -44,16 +49,10 @@ class PolicyInfo(BaseModel):
     rules: list[dict]
 
 
-class ProxyDenied(BaseModel):
-    error: str
-    reason: str
-    request_id: str
-    policy: str
-
-
 class HealthResponse(BaseModel):
     status: str
     version: str
+    providers: list[str]
     policy_loaded: bool
     agents_count: int
     audit_db: str

@@ -15,8 +15,11 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     agent_name TEXT NOT NULL DEFAULT '',
     method TEXT NOT NULL,
     path TEXT NOT NULL,
+    provider TEXT NOT NULL DEFAULT '',
     decision TEXT NOT NULL,
     deny_reason TEXT,
+    intent TEXT DEFAULT '',
+    intent_confidence REAL DEFAULT 0,
     status_code INTEGER,
     latency_ms REAL NOT NULL DEFAULT 0,
     request_id TEXT NOT NULL
@@ -26,7 +29,15 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 _CREATE_INDEX = """
 CREATE INDEX IF NOT EXISTS idx_audit_agent ON audit_logs(agent_id);
 CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_logs(timestamp);
+CREATE INDEX IF NOT EXISTS idx_audit_provider ON audit_logs(provider);
 """
+
+# Migrations for existing databases (add new columns if missing)
+_MIGRATIONS = [
+    "ALTER TABLE audit_logs ADD COLUMN provider TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE audit_logs ADD COLUMN intent TEXT DEFAULT ''",
+    "ALTER TABLE audit_logs ADD COLUMN intent_confidence REAL DEFAULT 0",
+]
 
 
 class AuditLogger:
@@ -41,6 +52,12 @@ class AuditLogger:
             return
         async with aiosqlite.connect(self._db_path) as db:
             await db.executescript(_CREATE_TABLE + _CREATE_INDEX)
+            # Run migrations (ignore errors for columns that already exist)
+            for migration in _MIGRATIONS:
+                try:
+                    await db.execute(migration)
+                except Exception:
+                    pass  # Column already exists
             await db.commit()
         self._initialized = True
         logger.info(f"Audit DB initialized: {self._db_path}")
@@ -52,8 +69,11 @@ class AuditLogger:
         agent_name: str,
         method: str,
         path: str,
+        provider: str = "",
         decision: str,
         deny_reason: str | None = None,
+        intent: str = "",
+        intent_confidence: float = 0,
         status_code: int | None = None,
         latency_ms: float = 0,
         request_id: str,
@@ -63,9 +83,11 @@ class AuditLogger:
             async with aiosqlite.connect(self._db_path) as db:
                 await db.execute(
                     """INSERT INTO audit_logs
-                       (agent_id, agent_name, method, path, decision, deny_reason, status_code, latency_ms, request_id)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                    (agent_id, agent_name, method, path, decision, deny_reason, status_code, latency_ms, request_id),
+                       (agent_id, agent_name, method, path, provider, decision,
+                        deny_reason, intent, intent_confidence, status_code, latency_ms, request_id)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (agent_id, agent_name, method, path, provider, decision,
+                     deny_reason, intent, intent_confidence, status_code, latency_ms, request_id),
                 )
                 await db.commit()
         except Exception as e:
@@ -76,6 +98,7 @@ class AuditLogger:
         *,
         agent_id: str | None = None,
         decision: str | None = None,
+        provider: str | None = None,
         limit: int = 50,
         offset: int = 0,
     ) -> tuple[list[dict[str, Any]], int]:
@@ -91,20 +114,21 @@ class AuditLogger:
         if decision:
             where_clauses.append("decision = ?")
             params.append(decision)
+        if provider:
+            where_clauses.append("provider = ?")
+            params.append(provider)
 
         where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
 
         async with aiosqlite.connect(self._db_path) as db:
             db.row_factory = aiosqlite.Row
 
-            # Total count
             cursor = await db.execute(
                 f"SELECT COUNT(*) as cnt FROM audit_logs {where_sql}", params
             )
             row = await cursor.fetchone()
             total: int = row["cnt"] if row else 0
 
-            # Fetch page
             cursor = await db.execute(
                 f"SELECT * FROM audit_logs {where_sql} ORDER BY id DESC LIMIT ? OFFSET ?",
                 [*params, limit, offset],
