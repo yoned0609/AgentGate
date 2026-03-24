@@ -1,0 +1,50 @@
+# AgentGate Default Policy
+# Controls what an AI agent can do through the proxy.
+
+name: default
+description: "Read-only access to Google Calendar during business hours"
+
+rules:
+  # Allow reading calendar lists
+  - resource: "/users/*/calendarList"
+    methods: ["GET"]
+    effect: allow
+
+  # Allow reading events
+  - resource: "/calendars/*/events"
+    methods: ["GET"]
+    effect: allow
+
+  # Allow reading single event
+  - resource: "/calendars/*/events/*"
+    methods: ["GET"]
+    effect: allow
+
+  # Allow free/busy queries
+  - resource: "/freeBusy"
+    methods: ["POST"]
+    effect: allow
+
+  # Deny all write/delete operations (explicit)
+  - resource: "/calendars/*/events"
+    methods: ["POST", "PUT", "PATCH", "DELETE"]
+    effect: deny
+    reason: "Write operations are not permitted under the default policy"
+
+  - resource: "/calendars/*/events/*"
+    methods: ["PUT", "PATCH", "DELETE"]
+    effect: deny
+    reason: "Write operations are not permitted under the default policy"
+
+# Default: deny anything not explicitly allowed
+default_effect: deny
+default_reason: "No matching rule found — denied by default policy"
+
+# Time restrictions (optional)
+time_restrictions:
+  enabled: false
+  # timezone: "Asia/Tokyo"
+  # allowed_hours:
+  #   start: "09:00"
+  #   end: "18:00"
+  # allowed_days: ["mon", "tue", "wed", "thu", "fri"]

@@ -1,0 +1,35 @@
+# AgentGate Read-Write Policy
+# Allows read and create, but denies delete.
+
+name: readwrite
+description: "Read and create access to Google Calendar, no delete"
+
+rules:
+  # Allow reading
+  - resource: "/users/*/calendarList"
+    methods: ["GET"]
+    effect: allow
+
+  - resource: "/calendars/*/events"
+    methods: ["GET", "POST"]
+    effect: allow
+
+  - resource: "/calendars/*/events/*"
+    methods: ["GET", "PUT", "PATCH"]
+    effect: allow
+
+  - resource: "/freeBusy"
+    methods: ["POST"]
+    effect: allow
+
+  # Deny delete
+  - resource: "/calendars/*/events/*"
+    methods: ["DELETE"]
+    effect: deny
+    reason: "Delete operations are not permitted under the readwrite policy"
+
+default_effect: deny
+default_reason: "No matching rule found — denied by readwrite policy"
+
+time_restrictions:
+  enabled: false
