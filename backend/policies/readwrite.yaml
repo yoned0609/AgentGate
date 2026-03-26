@@ -33,3 +33,9 @@ default_reason: "No matching rule found — denied by readwrite policy"
 
 time_restrictions:
   enabled: false
+
+# Rate limiting (higher limits for readwrite agents)
+rate_limit:
+  enabled: true
+  requests_per_minute: 60
+  requests_per_hour: 1000

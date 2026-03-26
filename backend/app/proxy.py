@@ -16,13 +16,17 @@ from .connectors import get_connector
 from .connectors.base import BaseConnector
 from .intent import IntentAnalyzer, IntentResult
 from .policy import PolicyEngine
+from .rate_limiter import RateLimiter
+from .webhook import WebhookNotifier
 
 # Headers that should not be forwarded from upstream responses
-_EXCLUDED_RESPONSE_HEADERS = frozenset({
-    "transfer-encoding",
-    "content-encoding",
-    "content-length",
-})
+_EXCLUDED_RESPONSE_HEADERS = frozenset(
+    {
+        "transfer-encoding",
+        "content-encoding",
+        "content-length",
+    }
+)
 
 
 class ReverseProxy:
@@ -34,10 +38,13 @@ class ReverseProxy:
         policy_engine: PolicyEngine,
         audit_logger: AuditLogger,
         intent_analyzer: IntentAnalyzer,
+        webhook_notifier: WebhookNotifier | None = None,
     ) -> None:
         self._policy = policy_engine
         self._audit = audit_logger
         self._intent = intent_analyzer
+        self._rate_limiter = RateLimiter()
+        self._webhook = webhook_notifier
         self._client = httpx.AsyncClient(timeout=30.0)
 
     async def handle(
@@ -51,8 +58,27 @@ class ReverseProxy:
         connector = get_connector(provider)
         if connector is None:
             return Response(
-                content=json.dumps({"error": "unknown_provider", "detail": f"Provider '{provider}' is not supported"}),
+                content=json.dumps(
+                    {
+                        "error": "unknown_provider",
+                        "detail": f"Provider '{provider}' is not supported",
+                    }
+                ),
                 status_code=400,
+                media_type="application/json",
+            )
+
+        # Verify agent is authorized for this provider
+        agent_provider = agent.get("provider", "")
+        if agent_provider and agent_provider != provider:
+            return Response(
+                content=json.dumps(
+                    {
+                        "error": "provider_mismatch",
+                        "detail": f"Agent '{agent['name']}' is registered for provider '{agent_provider}', not '{provider}'",
+                    }
+                ),
+                status_code=403,
                 media_type="application/json",
             )
 
@@ -60,6 +86,25 @@ class ReverseProxy:
         proxy_path = self._extract_proxy_path(request.url.path, provider)
         method = request.method.upper()
         policy_name: str = agent.get("policy", "default")
+
+        # Rate limit check
+        policy_obj = self._policy.get_policy(policy_name)
+        if policy_obj:
+            rl_result = self._rate_limiter.check(
+                agent["agent_id"], policy_obj.rate_limit
+            )
+            if not rl_result.allowed:
+                return await self._handle_rate_limited(
+                    agent=agent,
+                    method=method,
+                    proxy_path=proxy_path,
+                    provider=provider,
+                    request_id=request_id,
+                    start=start,
+                    retry_after=rl_result.retry_after or 1,
+                    limit=rl_result.limit,
+                    window=rl_result.window,
+                )
 
         # Analyze intent (L1 → L2 → L3 fallback)
         body_bytes = await request.body()
@@ -80,6 +125,9 @@ class ReverseProxy:
                 request_id=request_id,
                 start=start,
             )
+
+        # Record request for rate limiting (only on allow)
+        self._rate_limiter.record(agent["agent_id"])
 
         return await self._forward_request(
             request=request,
@@ -127,10 +175,84 @@ class ReverseProxy:
             latency_ms=latency,
             request_id=request_id,
         )
+        if self._webhook:
+            await self._webhook.notify(
+                "deny",
+                {
+                    "agent_id": agent["agent_id"],
+                    "agent_name": agent["name"],
+                    "method": method,
+                    "path": proxy_path,
+                    "provider": provider,
+                    "reason": reason,
+                    "intent": intent.intent_type,
+                    "request_id": request_id,
+                },
+            )
         return Response(
             content=_deny_json(reason, request_id, policy_name, intent),
             status_code=403,
             media_type="application/json",
+        )
+
+    async def _handle_rate_limited(
+        self,
+        *,
+        agent: dict[str, Any],
+        method: str,
+        proxy_path: str,
+        provider: str,
+        request_id: str,
+        start: float,
+        retry_after: int,
+        limit: int,
+        window: str,
+    ) -> Response:
+        """Log and return a 429 rate-limited response."""
+        latency = (time.perf_counter() - start) * 1000
+        logger.warning(
+            f"[{request_id}] RATE_LIMITED {method} {provider}:{proxy_path} "
+            f"| agent={agent['name']} | limit={limit}/{window}"
+        )
+        await self._audit.log(
+            agent_id=agent["agent_id"],
+            agent_name=agent["name"],
+            method=method,
+            path=proxy_path,
+            provider=provider,
+            decision="rate_limited",
+            deny_reason=f"Rate limit exceeded: {limit} requests per {window}",
+            status_code=429,
+            latency_ms=latency,
+            request_id=request_id,
+        )
+        if self._webhook:
+            await self._webhook.notify(
+                "rate_limited",
+                {
+                    "agent_id": agent["agent_id"],
+                    "agent_name": agent["name"],
+                    "method": method,
+                    "path": proxy_path,
+                    "provider": provider,
+                    "limit": limit,
+                    "window": window,
+                    "request_id": request_id,
+                },
+            )
+        body = json.dumps(
+            {
+                "error": "rate_limited",
+                "detail": f"Rate limit exceeded: {limit} requests per {window}",
+                "retry_after": retry_after,
+                "request_id": request_id,
+            }
+        )
+        return Response(
+            content=body,
+            status_code=429,
+            media_type="application/json",
+            headers={"Retry-After": str(retry_after)},
         )
 
     async def _forward_request(
@@ -178,7 +300,8 @@ class ReverseProxy:
             )
 
             resp_headers = {
-                k: v for k, v in resp.headers.items()
+                k: v
+                for k, v in resp.headers.items()
                 if k.lower() not in _EXCLUDED_RESPONSE_HEADERS
             }
             return Response(
@@ -190,7 +313,9 @@ class ReverseProxy:
 
         except httpx.RequestError as exc:
             latency = (time.perf_counter() - start) * 1000
-            logger.error(f"[{request_id}] PROXY ERROR {method} {provider}:{proxy_path}: {exc}")
+            logger.error(
+                f"[{request_id}] PROXY ERROR {method} {provider}:{proxy_path}: {exc}"
+            )
             await self._audit.log(
                 agent_id=agent["agent_id"],
                 agent_name=agent["name"],
@@ -220,7 +345,7 @@ class ReverseProxy:
         """Strip the /proxy/{provider} prefix from the request path."""
         prefix = f"/proxy/{provider}"
         if url_path.startswith(prefix):
-            path = url_path[len(prefix):]
+            path = url_path[len(prefix) :]
             return path or "/"
         return url_path
 
@@ -230,19 +355,21 @@ def _deny_json(
 ) -> str:
     """Build a JSON denial response body with structured feedback."""
     suggestion = _suggest_alternative(intent)
-    return json.dumps({
-        "error": "access_denied",
-        "reason": reason or "Denied by policy",
-        "intent": {
-            "type": intent.intent_type,
-            "resource": intent.resource_type,
-            "confidence": intent.confidence,
-            "level": intent.analysis_level,
-        },
-        "suggestion": suggestion,
-        "request_id": request_id,
-        "policy": policy,
-    })
+    return json.dumps(
+        {
+            "error": "access_denied",
+            "reason": reason or "Denied by policy",
+            "intent": {
+                "type": intent.intent_type,
+                "resource": intent.resource_type,
+                "confidence": intent.confidence,
+                "level": intent.analysis_level,
+            },
+            "suggestion": suggestion,
+            "request_id": request_id,
+            "policy": policy,
+        }
+    )
 
 
 _SUGGESTIONS: dict[str, str] = {

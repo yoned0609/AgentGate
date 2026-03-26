@@ -48,3 +48,9 @@ time_restrictions:
   #   start: "09:00"
   #   end: "18:00"
   # allowed_days: ["mon", "tue", "wed", "thu", "fri"]
+
+# Rate limiting
+rate_limit:
+  enabled: true
+  requests_per_minute: 30
+  requests_per_hour: 500

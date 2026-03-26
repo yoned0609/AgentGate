@@ -38,7 +38,10 @@ def test_unknown_provider_returns_none():
 def test_google_build_target_url():
     c = get_connector("google")
     url = c.build_target_url("/calendars/primary/events", "maxResults=10")
-    assert url == "https://www.googleapis.com/calendar/v3/calendars/primary/events?maxResults=10"
+    assert (
+        url
+        == "https://www.googleapis.com/calendar/v3/calendars/primary/events?maxResults=10"
+    )
 
 
 def test_microsoft_build_target_url():

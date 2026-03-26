@@ -20,6 +20,18 @@ class AgentResponse(BaseModel):
     policy: str
     provider: str
     created_at: str
+    request_count: int = 0
+    deny_count: int = 0
+    last_request_at: str | None = None
+
+
+class AgentStats(BaseModel):
+    agent_id: str
+    name: str
+    request_count: int
+    deny_count: int
+    deny_rate: float
+    last_request_at: str | None = None
 
 
 class AuditLogEntry(BaseModel):
@@ -47,6 +59,19 @@ class AuditLogList(BaseModel):
 class PolicyInfo(BaseModel):
     name: str
     rules: list[dict]
+
+
+class WebhookCreate(BaseModel):
+    url: str
+    events: list[str] = ["deny", "rate_limited"]
+    headers: dict[str, str] = {}
+
+
+class AlertThresholdCreate(BaseModel):
+    event: str = "deny"
+    count: int = 10
+    window_seconds: int = 300
+    agent_id: str | None = None
 
 
 class HealthResponse(BaseModel):

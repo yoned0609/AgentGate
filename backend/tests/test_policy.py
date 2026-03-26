@@ -5,6 +5,7 @@ from app.policy import PolicyEngine
 
 # ── Google Calendar (default / readwrite policies) ────────────────
 
+
 def test_default_policy_allows_get_events():
     engine = PolicyEngine(policy_dir="policies")
     decision = engine.evaluate("default", "GET", "/calendars/primary/events")
@@ -55,7 +56,9 @@ def test_readwrite_policy_allows_put_event():
 
 def test_readwrite_policy_denies_delete():
     engine = PolicyEngine(policy_dir="policies")
-    decision = engine.evaluate("readwrite", "DELETE", "/calendars/primary/events/abc123")
+    decision = engine.evaluate(
+        "readwrite", "DELETE", "/calendars/primary/events/abc123"
+    )
     assert decision.effect == "deny"
 
 
@@ -73,6 +76,7 @@ def test_calendarlist_allowed():
 
 
 # ── Microsoft Graph policies ─────────────────────────────────────
+
 
 def test_microsoft_readonly_allows_get_events():
     engine = PolicyEngine(policy_dir="policies")
@@ -94,7 +98,9 @@ def test_microsoft_readwrite_allows_post_events():
 
 def test_microsoft_readwrite_denies_delete_events():
     engine = PolicyEngine(policy_dir="policies")
-    decision = engine.evaluate("microsoft_readwrite", "DELETE", "/me/calendar/events/abc")
+    decision = engine.evaluate(
+        "microsoft_readwrite", "DELETE", "/me/calendar/events/abc"
+    )
     assert decision.effect == "deny"
 
 
@@ -105,6 +111,7 @@ def test_microsoft_readonly_allows_get_messages():
 
 
 # ── Slack policies ───────────────────────────────────────────────
+
 
 def test_slack_readonly_allows_conversations_list():
     engine = PolicyEngine(policy_dir="policies")

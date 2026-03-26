@@ -1,0 +1,24 @@
+services:
+  agentgate:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8100:8100"
+    environment:
+      - DEBUG=${DEBUG:-false}
+      - MASTER_API_KEY=${MASTER_API_KEY:-ag_dev_change_me_in_production}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000}
+      - AUDIT_DB_PATH=/app/data/audit.db
+    volumes:
+      - agentgate-data:/app/data
+      - ./backend/policies:/app/policies:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8100/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  agentgate-data:

@@ -5,16 +5,15 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from loguru import logger
-
 
 @dataclass
 class IntentResult:
     """Structured result of intent analysis."""
-    intent_type: str        # "read", "create", "update", "delete", "query", "unknown"
-    resource_type: str      # "calendar_event", "calendar_list", "message", "channel", etc.
-    confidence: float       # 0.0 - 1.0
-    analysis_level: str     # "L1", "L2", "L3"
+
+    intent_type: str  # "read", "create", "update", "delete", "query", "unknown"
+    resource_type: str  # "calendar_event", "calendar_list", "message", "channel", etc.
+    confidence: float  # 0.0 - 1.0
+    analysis_level: str  # "L1", "L2", "L3"
     reasoning: str | None = None
 
 
@@ -61,12 +60,21 @@ _RESOURCE_PATTERNS: dict[str, list[tuple[str, str]]] = {
 }
 
 # Slack methods that are reads despite being POST
-_SLACK_READ_METHODS = frozenset({
-    "conversations.list", "conversations.info", "conversations.history",
-    "conversations.members", "users.list", "users.info",
-    "users.lookupByEmail", "files.list", "files.info",
-    "reactions.list", "reactions.get",
-})
+_SLACK_READ_METHODS = frozenset(
+    {
+        "conversations.list",
+        "conversations.info",
+        "conversations.history",
+        "conversations.members",
+        "users.list",
+        "users.info",
+        "users.lookupByEmail",
+        "files.list",
+        "files.info",
+        "reactions.list",
+        "reactions.get",
+    }
+)
 
 
 class IntentAnalyzer:

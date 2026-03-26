@@ -86,8 +86,20 @@ class AuditLogger:
                        (agent_id, agent_name, method, path, provider, decision,
                         deny_reason, intent, intent_confidence, status_code, latency_ms, request_id)
                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                    (agent_id, agent_name, method, path, provider, decision,
-                     deny_reason, intent, intent_confidence, status_code, latency_ms, request_id),
+                    (
+                        agent_id,
+                        agent_name,
+                        method,
+                        path,
+                        provider,
+                        decision,
+                        deny_reason,
+                        intent,
+                        intent_confidence,
+                        status_code,
+                        latency_ms,
+                        request_id,
+                    ),
                 )
                 await db.commit()
         except Exception as e:
@@ -137,6 +149,116 @@ class AuditLogger:
             logs: list[dict[str, Any]] = [dict(r) for r in rows]
 
         return logs, total
+
+    async def stats(
+        self,
+        *,
+        agent_id: str | None = None,
+        provider: str | None = None,
+    ) -> dict[str, Any]:
+        """Aggregate statistics: total counts, deny rate, per-provider breakdown."""
+        await self._ensure_init()
+
+        where_clauses: list[str] = []
+        params: list[str] = []
+        if agent_id:
+            where_clauses.append("agent_id = ?")
+            params.append(agent_id)
+        if provider:
+            where_clauses.append("provider = ?")
+            params.append(provider)
+        where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+
+        async with aiosqlite.connect(self._db_path) as db:
+            db.row_factory = aiosqlite.Row
+
+            # Total counts by decision
+            cursor = await db.execute(
+                f"SELECT decision, COUNT(*) as cnt FROM audit_logs {where_sql} GROUP BY decision",
+                params,
+            )
+            decision_counts: dict[str, int] = {}
+            for row in await cursor.fetchall():
+                decision_counts[row["decision"]] = row["cnt"]
+
+            total = sum(decision_counts.values())
+            deny_count = decision_counts.get("deny", 0) + decision_counts.get(
+                "rate_limited", 0
+            )
+
+            # Per-provider breakdown
+            cursor = await db.execute(
+                f"SELECT provider, COUNT(*) as cnt FROM audit_logs {where_sql} GROUP BY provider",
+                params,
+            )
+            by_provider: dict[str, int] = {}
+            for row in await cursor.fetchall():
+                by_provider[row["provider"] or "unknown"] = row["cnt"]
+
+            # Average latency
+            cursor = await db.execute(
+                f"SELECT AVG(latency_ms) as avg_lat, MAX(latency_ms) as max_lat FROM audit_logs {where_sql}",
+                params,
+            )
+            lat_row = await cursor.fetchone()
+            avg_latency = round(lat_row["avg_lat"] or 0, 2)
+            max_latency = round(lat_row["max_lat"] or 0, 2)
+
+        return {
+            "total_requests": total,
+            "by_decision": decision_counts,
+            "deny_rate": round(deny_count / total, 4) if total > 0 else 0.0,
+            "by_provider": by_provider,
+            "avg_latency_ms": avg_latency,
+            "max_latency_ms": max_latency,
+        }
+
+    async def export(
+        self,
+        *,
+        agent_id: str | None = None,
+        decision: str | None = None,
+        provider: str | None = None,
+        limit: int = 10000,
+    ) -> list[dict[str, Any]]:
+        """Export audit logs as a flat list (for JSON/CSV download)."""
+        await self._ensure_init()
+
+        where_clauses: list[str] = []
+        params: list[str | int] = []
+        if agent_id:
+            where_clauses.append("agent_id = ?")
+            params.append(agent_id)
+        if decision:
+            where_clauses.append("decision = ?")
+            params.append(decision)
+        if provider:
+            where_clauses.append("provider = ?")
+            params.append(provider)
+        where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+
+        async with aiosqlite.connect(self._db_path) as db:
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute(
+                f"SELECT * FROM audit_logs {where_sql} ORDER BY id DESC LIMIT ?",
+                [*params, limit],
+            )
+            rows = await cursor.fetchall()
+        return [dict(r) for r in rows]
+
+    async def purge(self, *, retention_days: int = 90) -> int:
+        """Delete audit logs older than retention_days. Returns count deleted."""
+        await self._ensure_init()
+        async with aiosqlite.connect(self._db_path) as db:
+            cursor = await db.execute(
+                "DELETE FROM audit_logs WHERE timestamp < datetime('now', ?)",
+                (f"-{retention_days} days",),
+            )
+            count = cursor.rowcount
+            await db.commit()
+        if count > 0:
+            logger.info(f"Purged {count} audit logs older than {retention_days} days")
+        return count
 
     async def is_healthy(self) -> bool:
         try:
