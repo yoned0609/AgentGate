@@ -1,5 +1,9 @@
 # AgentGate
 
+[![CI](https://github.com/your-org/agentgate/actions/workflows/ci.yaml/badge.svg)](https://github.com/your-org/agentgate/actions/workflows/ci.yaml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/)
+
 > The authorization layer MCP doesn't have.
 
 AIエージェント専用のJIT (Just-in-Time) 認可プロキシ。
@@ -229,6 +233,65 @@ python3 -m pytest -v
 | test_validation.py | 7 | Request validation |
 | test_webhook.py | 6 | Webhooks & alerts |
 
+## SDK
+
+Client SDKs are available for Python and TypeScript.
+
+### Python
+
+```bash
+pip install agentgate-sdk
+```
+
+```python
+from agentgate_sdk import AgentGateClient
+
+# Admin client (master key for management operations)
+client = AgentGateClient(base_url="http://localhost:8100", master_key="your-master-key")
+
+# Register an agent
+agent = client.agents.create("my-agent", policy="default", provider="google")
+
+# Proxy a request (agent key for proxy operations)
+proxy_client = AgentGateClient(base_url="http://localhost:8100", agent_key=agent.api_key)
+resp = proxy_client.proxy.request("google", "calendars/primary/events", method="GET")
+
+# Query audit logs
+logs = client.audit.logs(limit=10)
+```
+
+Async is also supported — see [SDK README](sdks/python/README.md).
+
+### TypeScript / Node.js
+
+```bash
+npm install agentgate-sdk
+```
+
+```typescript
+import { AgentGateClient } from 'agentgate-sdk';
+
+// Admin client (masterKey for management operations)
+const client = new AgentGateClient({
+  baseUrl: 'http://localhost:8100',
+  masterKey: 'your-master-key',
+});
+
+const agent = await client.agents.create({ name: 'my-agent', policy: 'default', provider: 'google' });
+
+// Proxy client (agentKey for proxy operations)
+const proxyClient = new AgentGateClient({
+  baseUrl: 'http://localhost:8100',
+  agentKey: agent.apiKey,
+});
+const events = await proxyClient.proxy.request({ provider: 'google', path: 'calendars/primary/events', method: 'GET' });
+
+// Query audit logs
+const logs = await client.audit.logs({ limit: 10 });
+```
+
+See [SDK README](sdks/typescript/README.md) for full documentation.
+
 ## Docs
 
 | Document | JP | EN |
@@ -236,6 +299,10 @@ python3 -m pytest -v
 | Business Plan | [事業企画書](docs/business_plan.md) | [Business Plan](docs/business_plan_en.md) |
 | MVP Roadmap | [開発ロードマップ](docs/mvp_dev_roadmap.md) | [Dev Roadmap](docs/mvp_dev_roadmap_en.md) |
 
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
 ## License
 
-TBD
+[MIT](LICENSE)
