@@ -296,8 +296,6 @@ Container: Docker + docker-compose
 - [x] MCP Server registration API + bulk tool definition registration
 - [x] E2E integration tests (20 cases, mocked upstream)
 - [ ] ContextFlow integration (separate repo, future task)
-- [ ] Python SDK (pip install agentgate)
-- [ ] TypeScript SDK (npm install agentgate)
 
 **Positioning:**
 > "AgentGate: The authorization layer MCP doesn't have."
@@ -306,15 +304,23 @@ Container: Docker + docker-compose
 
 ---
 
-### Phase 4: OSS Launch + Community Building (Next)
+### Phase 4: OSS Preparation + SDKs ✅ Complete (Actual: 2026-03-27)
 
-**Tasks:**
-- [ ] License selection (Apache 2.0 or BSL)
+**Completed tasks:**
+- [x] License selection → **MIT License**
+- [x] CONTRIBUTING.md (contribution guide)
+- [x] README enhancements (badges, SDK examples, Contributing section)
+- [x] Python SDK (`agentgate-sdk`) — sync/async client, 44 tests
+- [x] TypeScript SDK (`agentgate-sdk`) — fetch-based, 32 tests
+- [x] CI SDK test jobs added (GitHub Actions)
+
+**Tests:** 187 cases passing (Backend 111 + Python SDK 44 + TypeScript SDK 32)
+
+**Remaining tasks (moved to Phase 5):**
 - [ ] GitHub public release + documentation site
 - [ ] Product Hunt / Hacker News launch
 - [ ] Custom connector development guide
 - [ ] Cloud-hosted version (SaaS) launch
-- [ ] Python SDK / TypeScript SDK
 
 ---
 
@@ -368,13 +374,20 @@ User → ContextFlow → AgentGate → Google Calendar API
 ### Phase 3 Complete ✅ (Actual: completed in 2 days — 2026-03-25)
 - ✅ MCP-compatible proxy operational (JSON-RPC `tools/call` authorization)
 - ⬜ ContextFlow integration (future task)
-- ⬜ SDKs (future task)
 - 111 tests passing
 
-### Phase 4 Goals
-- License selection + GitHub public release
+### Phase 4 Complete ✅ (Actual: 2026-03-27)
+- ✅ MIT License selected and applied
+- ✅ Python SDK (`agentgate-sdk`) ready for release — 44 tests
+- ✅ TypeScript SDK (`agentgate-sdk`) ready for release — 32 tests
+- ✅ CI SDK test jobs added
+- ✅ 187 tests passing
+- ⬜ GitHub public release (moved to Phase 5)
+
+### Phase 5 Goals
+- GitHub public release + documentation site
 - GitHub Stars: 100+ (within 1 month of launch)
-- SDKs (pip / npm) published
+- Product Hunt / Hacker News launch
 
 ### Year 1 Goals
 - GitHub Stars: 1,000+

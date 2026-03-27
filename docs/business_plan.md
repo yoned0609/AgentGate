@@ -297,8 +297,6 @@ Container: Docker + docker-compose
 - [x] MCP Server登録API + ツール定義一括登録
 - [x] E2E統合テスト（20ケース、モックupstream）
 - [ ] ContextFlow連携（別リポジトリ、将来タスク）
-- [ ] Python SDK (pip install agentgate)
-- [ ] TypeScript SDK (npm install agentgate)
 
 **ポジショニング:**
 > 「AgentGate: The authorization layer MCP doesn't have.」
@@ -307,15 +305,23 @@ Container: Docker + docker-compose
 
 ---
 
-### Phase 4: OSS公開 + コミュニティ構築（Next）
+### Phase 4: OSS公開 + SDK ✅ 完了（実績: 2026-03-27）
 
-**タスク:**
-- [ ] ライセンス選定（Apache 2.0 or BSL）
+**完了タスク:**
+- [x] ライセンス選定 → **MIT License**
+- [x] CONTRIBUTING.md（貢献ガイド）
+- [x] README 強化（バッジ、SDK使用例、Contributing セクション）
+- [x] Python SDK (`agentgate-sdk`) — sync/async クライアント、44テスト
+- [x] TypeScript SDK (`agentgate-sdk`) — fetch ベース、32テスト
+- [x] CI に SDK テストジョブ追加（GitHub Actions）
+
+**テスト:** 187ケース全通過（バックエンド111 + Python SDK 44 + TypeScript SDK 32）
+
+**未着手タスク（Phase 5 へ移行）:**
 - [ ] GitHub公開 + ドキュメントサイト
 - [ ] Product Hunt / Hacker News ローンチ
 - [ ] カスタムコネクタ開発ガイド
 - [ ] Cloudホスティング版（SaaS）の提供開始
-- [ ] Python SDK / TypeScript SDK
 
 ---
 
@@ -369,13 +375,20 @@ AgentGateはContextFlowの**セキュリティレイヤー**として統合可�
 ### Phase 3完了時 ✅（実績: 2日で完了 — 2026-03-25）
 - ✅ MCP対応プロキシが動作（JSON-RPC `tools/call` 認可）
 - ⬜ ContextFlow連携（将来タスク）
-- ⬜ SDK公開（将来タスク）
 - 111テスト全通過
 
-### Phase 4目標
-- ライセンス選定 + GitHub公開
+### Phase 4完了時 ✅（実績: 2026-03-27）
+- ✅ MIT License 選定・適用
+- ✅ Python SDK (`agentgate-sdk`) 公開準備完了 — 44テスト
+- ✅ TypeScript SDK (`agentgate-sdk`) 公開準備完了 — 32テスト
+- ✅ CI に SDK テストジョブ追加
+- ✅ 187テスト全通過
+- ⬜ GitHub公開（Phase 5 へ）
+
+### Phase 5目標
+- GitHub 公開 + ドキュメントサイト
 - GitHub Star: 100+（公開後1ヶ月）
-- SDK（pip / npm）公開
+- Product Hunt / Hacker News ローンチ
 
 ### Year 1目標
 - GitHub Star: 1,000+

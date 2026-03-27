@@ -1,7 +1,7 @@
 # AgentGate MVP Development Roadmap
 
 > JIT Authorization Proxy for AI Agents
-> Created: 2026-03-24 / Updated: 2026-03-26
+> Created: 2026-03-24 / Updated: 2026-03-27
 
 ---
 
@@ -33,6 +33,12 @@ Phase 4: Operational Quality
 Phase 5: Integration + Launch Prep
   Step 14: E2E Tests                ✅ Complete
   Step 15: MCP Auth Proxy           ✅ Complete
+
+Phase 6: OSS Preparation + SDKs
+  Step 16: MIT License + README      ✅ Complete
+  Step 17: Python SDK                ✅ Complete
+  Step 18: TypeScript SDK            ✅ Complete
+  Step 19: CI SDK Test Jobs          ✅ Complete
 ```
 
 ---
@@ -196,7 +202,9 @@ API key-based auth + SQLite-backed registry.
 
 ## Test Status
 
-111 tests passing (as of 2026-03-26)
+187 tests passing (as of 2026-03-27)
+
+### Backend (111 tests)
 
 | Test File | Cases | Scope |
 |-----------|:-----:|-------|
@@ -209,6 +217,18 @@ API key-based auth + SQLite-backed registry.
 | test_rate_limiter.py | 7 | Rate limiting |
 | test_validation.py | 7 | Request validation |
 | test_webhook.py | 6 | Webhooks & alerts |
+
+### Python SDK (44 tests)
+
+| Test File | Cases | Scope |
+|-----------|:-----:|-------|
+| test_client.py | 44 | Sync/async client, exception mapping, context managers |
+
+### TypeScript SDK (32 tests)
+
+| Test File | Cases | Scope |
+|-----------|:-----:|-------|
+| client.test.ts | 32 | All resources, error mapping, auth validation |
 
 ---
 
