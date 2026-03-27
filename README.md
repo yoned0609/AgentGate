@@ -6,11 +6,8 @@
 
 > The authorization layer MCP doesn't have.
 
-AIエージェント専用のJIT (Just-in-Time) 認可プロキシ。
-エージェントのリクエストをリアルタイムで解析し、最小限の権限をその瞬間だけ許可する。
-
-A JIT authorization proxy for AI agents.
-Intercepts agent requests in real time, evaluates intent, and enforces least-privilege policies.
+A JIT (Just-in-Time) authorization proxy for AI agents.
+Intercepts agent requests in real time, analyzes intent, and enforces least-privilege policies.
 
 ---
 
@@ -214,28 +211,34 @@ rate_limit:
 
 ## Tests
 
-111 tests — run with:
+187 tests passing — run with:
 
 ```bash
-cd backend
-python3 -m pytest -v
+# Backend (111 tests)
+cd backend && python3 -m pytest -v
+
+# Python SDK (44 tests)
+cd sdks/python && python3 -m pytest tests/ -v
+
+# TypeScript SDK (32 tests)
+cd sdks/typescript && npm test
 ```
 
-| File | Tests | Scope |
-|------|:-----:|-------|
-| test_connectors.py | 8 | Provider connectors |
-| test_e2e.py | 20 | End-to-end integration |
-| test_intent.py | 10 | Intent analysis |
-| test_mcp.py | 14 | MCP Auth Proxy |
-| test_policy.py | 20 | Policy engine v1 |
-| test_policy_v2.py | 19 | Policy v2 (intent/reload/validation) |
-| test_rate_limiter.py | 7 | Rate limiting |
-| test_validation.py | 7 | Request validation |
-| test_webhook.py | 6 | Webhooks & alerts |
+| Suite | File | Tests | Scope |
+|-------|------|:-----:|-------|
+| Backend | test_connectors.py | 8 | Provider connectors |
+| Backend | test_e2e.py | 20 | End-to-end integration |
+| Backend | test_intent.py | 10 | Intent analysis |
+| Backend | test_mcp.py | 14 | MCP Auth Proxy |
+| Backend | test_policy.py | 20 | Policy engine v1 |
+| Backend | test_policy_v2.py | 19 | Policy v2 (intent/reload/validation) |
+| Backend | test_rate_limiter.py | 7 | Rate limiting |
+| Backend | test_validation.py | 7 | Request validation |
+| Backend | test_webhook.py | 6 | Webhooks & alerts |
+| Python SDK | test_client.py | 44 | Sync/async client, exceptions |
+| TS SDK | client.test.ts | 32 | All resources, error mapping |
 
-## SDK
-
-Client SDKs are available for Python and TypeScript.
+## SDKs
 
 ### Python
 
@@ -260,7 +263,7 @@ resp = proxy_client.proxy.request("google", "calendars/primary/events", method="
 logs = client.audit.logs(limit=10)
 ```
 
-Async is also supported — see [SDK README](sdks/python/README.md).
+Async is also supported — see [Python SDK README](sdks/python/README.md).
 
 ### TypeScript / Node.js
 
@@ -290,18 +293,22 @@ const events = await proxyClient.proxy.request({ provider: 'google', path: 'cale
 const logs = await client.audit.logs({ limit: 10 });
 ```
 
-See [SDK README](sdks/typescript/README.md) for full documentation.
+See [TypeScript SDK README](sdks/typescript/README.md) for full documentation.
 
 ## Docs
 
-| Document | JP | EN |
-|----------|----|----|
-| Business Plan | [事業企画書](docs/business_plan.md) | [Business Plan](docs/business_plan_en.md) |
-| MVP Roadmap | [開発ロードマップ](docs/mvp_dev_roadmap.md) | [Dev Roadmap](docs/mvp_dev_roadmap_en.md) |
+| Document | Link |
+|----------|------|
+| Business Plan | [English](docs/business_plan_en.md) / [Japanese](docs/business_plan.md) |
+| Dev Roadmap | [English](docs/mvp_dev_roadmap_en.md) / [Japanese](docs/mvp_dev_roadmap.md) |
 
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+## Security
+
+See [SECURITY.md](SECURITY.md) for vulnerability reporting policy.
 
 ## License
 
