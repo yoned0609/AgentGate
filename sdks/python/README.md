@@ -1,6 +1,6 @@
 # agentgate-sdk
 
-Python SDK for [AgentGate](https://github.com/your-org/agentgate) — JIT Authorization Proxy for AI Agents.
+Python SDK for [AgentGate](https://github.com/yoned0609/AgentGate) — JIT Authorization Proxy for AI Agents.
 
 ## Installation
 

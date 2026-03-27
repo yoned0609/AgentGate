@@ -1,6 +1,6 @@
 # AgentGate
 
-[![CI](https://github.com/your-org/agentgate/actions/workflows/ci.yaml/badge.svg)](https://github.com/your-org/agentgate/actions/workflows/ci.yaml)
+[![CI](https://github.com/yoned0609/AgentGate/actions/workflows/ci.yaml/badge.svg)](https://github.com/yoned0609/AgentGate/actions/workflows/ci.yaml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/)
 
@@ -59,7 +59,7 @@ AI Agent (MCP Client)
 ```bash
 cd backend
 pip install -r requirements.txt
-cp .env.example .env
+cp .env.example .env   # ⚠️ Change MASTER_API_KEY before deploying!
 python3 -m uvicorn app.main:app --reload --port 8100
 ```
 
