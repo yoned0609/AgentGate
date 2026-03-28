@@ -11,6 +11,28 @@ Intercepts agent requests in real time, analyzes intent, and enforces least-priv
 
 ---
 
+## Why AgentGate?
+
+AI agents are getting powerful API access — but **zero authorization guardrails**.
+
+- **MCP has no enforcement layer.** `readOnlyHint` and `destructiveHint` are advisory annotations. Nothing stops an agent from ignoring them.
+- **API keys grant full access.** Most agent integrations use a single OAuth token or API key with no per-action scoping.
+- **No audit trail.** When an agent deletes data or exceeds rate limits, there's no centralized log to investigate.
+
+AgentGate is a **transparent proxy** that sits between your AI agent and SaaS APIs. Every request is analyzed, authorized against YAML policies, rate-limited, and logged — in under 5ms of overhead.
+
+### How is AgentGate different?
+
+| Solution | Scope | AI Agent Aware? | MCP Support | Intent Analysis |
+|----------|-------|:-:|:-:|:-:|
+| **AgentGate** | AI agent authorization proxy | Yes | Yes — JSON-RPC interception | L1 method + L2 path pattern |
+| OPA / Rego | General-purpose policy engine | No | No | No |
+| Ory Oathkeeper | Identity-aware reverse proxy | No | No | No |
+| Kong / Envoy | API gateway / service mesh | No | No | No |
+| MCP Annotations | Protocol-level hints | Advisory only | Hints, not enforced | No |
+
+---
+
 ## Features
 
 | Feature | Description |
