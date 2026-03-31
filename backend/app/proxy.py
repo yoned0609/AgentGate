@@ -15,6 +15,7 @@ from .audit import AuditLogger
 from .connectors import get_connector
 from .connectors.base import BaseConnector
 from .intent import IntentAnalyzer, IntentResult
+from .path_normalize import normalize_path
 from .policy import PolicyEngine
 from .rate_limiter import RateLimiter
 from .webhook import WebhookNotifier
@@ -342,12 +343,12 @@ class ReverseProxy:
 
     @staticmethod
     def _extract_proxy_path(url_path: str, provider: str) -> str:
-        """Strip the /proxy/{provider} prefix from the request path."""
+        """Strip the /proxy/{provider} prefix and normalize the path."""
         prefix = f"/proxy/{provider}"
         if url_path.startswith(prefix):
             path = url_path[len(prefix) :]
-            return path or "/"
-        return url_path
+            return normalize_path(path) if path else "/"
+        return normalize_path(url_path)
 
 
 def _deny_json(

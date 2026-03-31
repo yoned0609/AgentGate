@@ -11,6 +11,9 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 # Max request body size: 1 MB
 MAX_BODY_SIZE = 1 * 1024 * 1024
 
+# Max URL path length (prevents performance degradation on adversarial long paths)
+MAX_PATH_LENGTH = 2048
+
 # Patterns that indicate path traversal
 _PATH_TRAVERSAL_RE = re.compile(r"(\.\./|\.\.\\|%2[eE]%2[eE]|%252[eE])")
 
@@ -24,8 +27,15 @@ class RequestValidationMiddleware(BaseHTTPMiddleware):
     async def dispatch(
         self, request: Request, call_next: RequestResponseEndpoint
     ) -> Response:
-        # 1. Path traversal check
+        # 0. Path length check (prevents performance attacks)
         raw_path = request.url.path
+        if len(raw_path) > MAX_PATH_LENGTH:
+            logger.warning(f"Path too long blocked: {len(raw_path)} chars")
+            return _json_error(
+                414, "path_too_long", f"Path exceeds maximum length of {MAX_PATH_LENGTH}"
+            )
+
+        # 1. Path traversal check
         if _PATH_TRAVERSAL_RE.search(raw_path):
             logger.warning(f"Path traversal attempt blocked: {raw_path}")
             return _json_error(

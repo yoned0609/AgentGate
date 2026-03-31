@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import fnmatch
+import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -11,7 +12,53 @@ from zoneinfo import ZoneInfo
 import yaml
 from loguru import logger
 
+from .path_normalize import normalize_path
 from .rate_limiter import RateLimitConfig
+
+
+def _path_match(path: str, pattern: str) -> bool:
+    """Match a path against a glob pattern with segment-aware wildcards.
+
+    Unlike fnmatch.fnmatch, '*' does NOT match across '/' boundaries.
+    '**' matches zero or more path segments (including '/').
+
+    Examples:
+        /calendars/*/events  matches /calendars/primary/events
+        /calendars/*/events  does NOT match /calendars/primary/sub/events
+        /calendars/**/events matches /calendars/primary/sub/events
+    """
+    # Split both into segments
+    path_parts = [p for p in path.split("/") if p]
+    pattern_parts = [p for p in pattern.split("/") if p]
+    return _match_segments(path_parts, pattern_parts)
+
+
+def _match_segments(path_parts: list[str], pattern_parts: list[str]) -> bool:
+    """Recursively match path segments against pattern segments."""
+    pi = 0  # path index
+    gi = 0  # pattern (glob) index
+
+    while gi < len(pattern_parts) and pi < len(path_parts):
+        seg = pattern_parts[gi]
+        if seg == "**":
+            # ** matches zero or more segments
+            # Try matching remaining pattern from every possible position
+            for skip in range(pi, len(path_parts) + 1):
+                if _match_segments(path_parts[skip:], pattern_parts[gi + 1:]):
+                    return True
+            return False
+        elif fnmatch.fnmatch(path_parts[pi], seg):
+            pi += 1
+            gi += 1
+        else:
+            return False
+
+    # Both must be exhausted for a full match
+    # (unless remaining pattern is all **)
+    while gi < len(pattern_parts) and pattern_parts[gi] == "**":
+        gi += 1
+
+    return pi == len(path_parts) and gi == len(pattern_parts)
 
 # ── Required fields for YAML schema validation ─────────────────────
 
@@ -208,6 +255,9 @@ class PolicyEngine:
             if decision is not None:
                 return decision
 
+        # Normalize path before evaluation (prevents obfuscation bypass)
+        path = normalize_path(path)
+
         # Evaluate rules in order (first match wins)
         method_upper = method.upper()
         for rule in policy.rules:
@@ -234,9 +284,9 @@ class PolicyEngine:
         if rule_methods and method not in rule_methods:
             return False
 
-        # Resource path matching
+        # Resource path matching (segment-aware: * does not match /)
         resource_pattern = rule.get("resource", "")
-        if resource_pattern and not fnmatch.fnmatch(path, resource_pattern):
+        if resource_pattern and not _path_match(path, resource_pattern):
             return False
 
         # Intent matching (v2): match on intent_type field
@@ -407,7 +457,7 @@ def _evaluate_single_condition(
 ) -> bool:
     """Evaluate a single condition within a compound expression."""
     if "resource" in cond:
-        if not fnmatch.fnmatch(path, cond["resource"]):
+        if not _path_match(path, cond["resource"]):
             return False
     if "methods" in cond:
         if method not in [m.upper() for m in cond["methods"]]:

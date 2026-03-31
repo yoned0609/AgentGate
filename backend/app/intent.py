@@ -5,6 +5,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from .path_normalize import normalize_path
+
 
 @dataclass
 class IntentResult:
@@ -95,16 +97,19 @@ class IntentAnalyzer:
         """Analyze request intent. Falls back through L1 → L2 → L3."""
         method_upper = method.upper()
 
+        # Normalize path before analysis (prevents obfuscation bypass)
+        normalized_path = normalize_path(path)
+
         # L1: Method-based intent
         intent_type = _METHOD_INTENT.get(method_upper, "unknown")
 
         # L2: Provider-specific refinement
-        resource_type = self._classify_resource(path, provider)
+        resource_type = self._classify_resource(normalized_path, provider)
 
         # L2: Slack override — many "read" operations use POST
         if provider == "slack" and method_upper == "POST":
-            # Extract Slack method name from path
-            slack_method = path.lstrip("/")
+            # Extract Slack method name from normalized path
+            slack_method = normalized_path.lstrip("/")
             if slack_method in _SLACK_READ_METHODS:
                 intent_type = "read"
 
