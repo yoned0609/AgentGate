@@ -1,0 +1,47 @@
+name: jira_readonly
+description: "Jira read-only — browse issues, projects, boards"
+
+default_effect: deny
+default_reason: "Write operations not permitted under Jira read-only policy"
+
+rate_limit:
+  enabled: true
+  requests_per_minute: 60
+  requests_per_hour: 1000
+
+rules:
+  - resource: "/issue/*"
+    methods: ["GET"]
+    effect: allow
+    reason: "Read issue details"
+
+  - resource: "/search"
+    methods: ["GET", "POST"]
+    effect: allow
+    intent: ["read"]
+    reason: "Search issues (JQL)"
+
+  - resource: "/project"
+    methods: ["GET"]
+    effect: allow
+    reason: "List projects"
+
+  - resource: "/project/*"
+    methods: ["GET"]
+    effect: allow
+    reason: "Read project details"
+
+  - resource: "/board/*"
+    methods: ["GET"]
+    effect: allow
+    reason: "View board"
+
+  - resource: "/board/*/sprint"
+    methods: ["GET"]
+    effect: allow
+    reason: "List sprints"
+
+  - resource: "/issue/*/comment"
+    methods: ["GET"]
+    effect: allow
+    reason: "Read issue comments"

@@ -1,0 +1,348 @@
+{
+  "accuracy": {
+    "agentgate": {
+      "overall": 1.0,
+      "by_category": {
+        "simple": 1.0,
+        "sarcasm": 1.0,
+        "slang": 1.0,
+        "double_negative": 1.0,
+        "gray_zone": 1.0,
+        "implicit": 1.0
+      }
+    },
+    "disruptor": {
+      "overall": 0.9444444444444444,
+      "by_category": {
+        "simple": 0.8333333333333334,
+        "sarcasm": 1.0,
+        "slang": 1.0,
+        "double_negative": 1.0,
+        "gray_zone": 1.0,
+        "implicit": 1.0
+      }
+    }
+  },
+  "performance": {
+    "agentgate": {
+      "avg_latency_ms": 0.18,
+      "p99_latency_ms": 0.84,
+      "total_cost": 0.0,
+      "deterministic": true
+    },
+    "disruptor": {
+      "avg_latency_ms": 700.8,
+      "p99_latency_ms": 1065.0,
+      "total_cost": 0.10506,
+      "deterministic": false
+    }
+  },
+  "agility": {
+    "agentgate": {
+      "change_method": "edit YAML → hot-reload on next request",
+      "propagation_ms": 103.78,
+      "human_intervention_required": true,
+      "audit_trail": "git diff on YAML files",
+      "deterministic_after_change": true,
+      "compliance_risk": "LOW — immutable YAML with git history"
+    },
+    "disruptor": {
+      "change_method": "automatic_learning",
+      "propagation_ms": 0.02,
+      "human_intervention_required": false,
+      "rules_modified": 0,
+      "audit_trail": "version_counter_only",
+      "compliance_risk": "HIGH — rules mutate without approval"
+    }
+  },
+  "details": [
+    {
+      "scenario": "simple_read_events",
+      "system": "agentgate",
+      "intent_correct": true,
+      "confidence": 0.95,
+      "latency_ms": 0.84,
+      "cost_usd": 0.0
+    },
+    {
+      "scenario": "simple_read_events",
+      "system": "disruptor",
+      "intent_correct": true,
+      "confidence": 0.85,
+      "latency_ms": 294.84,
+      "cost_usd": 0.00204
+    },
+    {
+      "scenario": "simple_delete_event",
+      "system": "agentgate",
+      "intent_correct": true,
+      "confidence": 0.95,
+      "latency_ms": 0.09,
+      "cost_usd": 0.0
+    },
+    {
+      "scenario": "simple_delete_event",
+      "system": "disruptor",
+      "intent_correct": true,
+      "confidence": 0.85,
+      "latency_ms": 514.9,
+      "cost_usd": 0.00486
+    },
+    {
+      "scenario": "simple_create_event",
+      "system": "agentgate",
+      "intent_correct": true,
+      "confidence": 0.95,
+      "latency_ms": 0.11,
+      "cost_usd": 0.0
+    },
+    {
+      "scenario": "simple_create_event",
+      "system": "disruptor",
+      "intent_correct": true,
+      "confidence": 0.85,
+      "latency_ms": 294.84,
+      "cost_usd": 0.00204
+    },
+    {
+      "scenario": "simple_read_messages",
+      "system": "agentgate",
+      "intent_correct": true,
+      "confidence": 0.95,
+      "latency_ms": 0.34,
+      "cost_usd": 0.0
+    },
+    {
+      "scenario": "simple_read_messages",
+      "system": "disruptor",
+      "intent_correct": true,
+      "confidence": 0.85,
+      "latency_ms": 176.55,
+      "cost_usd": 0.00204
+    },
+    {
+      "scenario": "slack_read_via_post",
+      "system": "agentgate",
+      "intent_correct": true,
+      "confidence": 0.95,
+      "latency_ms": 0.16,
+      "cost_usd": 0.0
+    },
+    {
+      "scenario": "slack_read_via_post",
+      "system": "disruptor",
+      "intent_correct": false,
+      "confidence": 0.85,
+      "latency_ms": 163.96,
+      "cost_usd": 0.00204
+    },
+    {
+      "scenario": "simple_update_event",
+      "system": "agentgate",
+      "intent_correct": true,
+      "confidence": 0.95,
+      "latency_ms": 0.06,
+      "cost_usd": 0.0
+    },
+    {
+      "scenario": "simple_update_event",
+      "system": "disruptor",
+      "intent_correct": true,
+      "confidence": 0.85,
+      "latency_ms": 400.5,
+      "cost_usd": 0.00204
+    },
+    {
+      "scenario": "sarcasm_delete",
+      "system": "agentgate",
+      "intent_correct": true,
+      "confidence": 0.95,
+      "latency_ms": 0.04,
+      "cost_usd": 0.0
+    },
+    {
+      "scenario": "sarcasm_delete",
+      "system": "disruptor",
+      "intent_correct": true,
+      "confidence": 0.88,
+      "latency_ms": 890.57,
+      "cost_usd": 0.0075
+    },
+    {
+      "scenario": "sarcasm_read_all",
+      "system": "agentgate",
+      "intent_correct": true,
+      "confidence": 0.95,
+      "latency_ms": 0.11,
+      "cost_usd": 0.0
+    },
+    {
+      "scenario": "sarcasm_read_all",
+      "system": "disruptor",
+      "intent_correct": true,
+      "confidence": 0.88,
+      "latency_ms": 972.85,
+      "cost_usd": 0.0075
+    },
+    {
+      "scenario": "slang_nuke",
+      "system": "agentgate",
+      "intent_correct": true,
+      "confidence": 0.95,
+      "latency_ms": 0.07,
+      "cost_usd": 0.0
+    },
+    {
+      "scenario": "slang_nuke",
+      "system": "disruptor",
+      "intent_correct": true,
+      "confidence": 0.85,
+      "latency_ms": 711.38,
+      "cost_usd": 0.0075
+    },
+    {
+      "scenario": "slang_yeet",
+      "system": "agentgate",
+      "intent_correct": true,
+      "confidence": 0.95,
+      "latency_ms": 0.08,
+      "cost_usd": 0.0
+    },
+    {
+      "scenario": "slang_yeet",
+      "system": "disruptor",
+      "intent_correct": true,
+      "confidence": 0.85,
+      "latency_ms": 1026.33,
+      "cost_usd": 0.0075
+    },
+    {
+      "scenario": "slang_spin_up",
+      "system": "agentgate",
+      "intent_correct": true,
+      "confidence": 0.95,
+      "latency_ms": 0.07,
+      "cost_usd": 0.0
+    },
+    {
+      "scenario": "slang_spin_up",
+      "system": "disruptor",
+      "intent_correct": true,
+      "confidence": 0.82,
+      "latency_ms": 1065.01,
+      "cost_usd": 0.0075
+    },
+    {
+      "scenario": "double_neg_send",
+      "system": "agentgate",
+      "intent_correct": true,
+      "confidence": 0.95,
+      "latency_ms": 0.49,
+      "cost_usd": 0.0
+    },
+    {
+      "scenario": "double_neg_send",
+      "system": "disruptor",
+      "intent_correct": true,
+      "confidence": 0.68,
+      "latency_ms": 1003.32,
+      "cost_usd": 0.0075
+    },
+    {
+      "scenario": "double_neg_update",
+      "system": "agentgate",
+      "intent_correct": true,
+      "confidence": 0.95,
+      "latency_ms": 0.07,
+      "cost_usd": 0.0
+    },
+    {
+      "scenario": "double_neg_update",
+      "system": "disruptor",
+      "intent_correct": true,
+      "confidence": 0.62,
+      "latency_ms": 926.75,
+      "cost_usd": 0.0075
+    },
+    {
+      "scenario": "gray_share",
+      "system": "agentgate",
+      "intent_correct": true,
+      "confidence": 0.95,
+      "latency_ms": 0.44,
+      "cost_usd": 0.0
+    },
+    {
+      "scenario": "gray_share",
+      "system": "disruptor",
+      "intent_correct": true,
+      "confidence": 0.65,
+      "latency_ms": 825.94,
+      "cost_usd": 0.0075
+    },
+    {
+      "scenario": "gray_cleanup",
+      "system": "agentgate",
+      "intent_correct": true,
+      "confidence": 0.95,
+      "latency_ms": 0.08,
+      "cost_usd": 0.0
+    },
+    {
+      "scenario": "gray_cleanup",
+      "system": "disruptor",
+      "intent_correct": true,
+      "confidence": 0.58,
+      "latency_ms": 953.4,
+      "cost_usd": 0.0075
+    },
+    {
+      "scenario": "gray_sync",
+      "system": "agentgate",
+      "intent_correct": true,
+      "confidence": 0.95,
+      "latency_ms": 0.07,
+      "cost_usd": 0.0
+    },
+    {
+      "scenario": "gray_sync",
+      "system": "disruptor",
+      "intent_correct": true,
+      "confidence": 0.55,
+      "latency_ms": 883.37,
+      "cost_usd": 0.0075
+    },
+    {
+      "scenario": "implicit_reschedule",
+      "system": "agentgate",
+      "intent_correct": true,
+      "confidence": 0.95,
+      "latency_ms": 0.05,
+      "cost_usd": 0.0
+    },
+    {
+      "scenario": "implicit_reschedule",
+      "system": "disruptor",
+      "intent_correct": true,
+      "confidence": 0.7,
+      "latency_ms": 750.33,
+      "cost_usd": 0.0075
+    },
+    {
+      "scenario": "implicit_clone",
+      "system": "agentgate",
+      "intent_correct": true,
+      "confidence": 0.95,
+      "latency_ms": 0.09,
+      "cost_usd": 0.0
+    },
+    {
+      "scenario": "implicit_clone",
+      "system": "disruptor",
+      "intent_correct": true,
+      "confidence": 0.75,
+      "latency_ms": 759.84,
+      "cost_usd": 0.0075
+    }
+  ]
+}

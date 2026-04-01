@@ -1,0 +1,56 @@
+name: salesforce_readonly
+description: "Salesforce read-only — query objects, view records"
+
+default_effect: deny
+default_reason: "Write operations not permitted under Salesforce read-only policy"
+
+rate_limit:
+  enabled: true
+  requests_per_minute: 60
+  requests_per_hour: 1000
+
+rules:
+  - resource: "/query"
+    methods: ["GET"]
+    effect: allow
+    reason: "Execute SOQL queries"
+
+  - resource: "/sobjects/Account/*"
+    methods: ["GET"]
+    effect: allow
+    reason: "Read account records"
+
+  - resource: "/sobjects/Account"
+    methods: ["GET"]
+    effect: allow
+    reason: "List accounts"
+
+  - resource: "/sobjects/Contact/*"
+    methods: ["GET"]
+    effect: allow
+    reason: "Read contact records"
+
+  - resource: "/sobjects/Contact"
+    methods: ["GET"]
+    effect: allow
+    reason: "List contacts"
+
+  - resource: "/sobjects/Opportunity/*"
+    methods: ["GET"]
+    effect: allow
+    reason: "Read opportunity records"
+
+  - resource: "/sobjects/Opportunity"
+    methods: ["GET"]
+    effect: allow
+    reason: "List opportunities"
+
+  - resource: "/sobjects/Lead/*"
+    methods: ["GET"]
+    effect: allow
+    reason: "Read lead records"
+
+  - resource: "/sobjects/Case/*"
+    methods: ["GET"]
+    effect: allow
+    reason: "Read case records"

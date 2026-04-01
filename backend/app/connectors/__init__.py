@@ -6,11 +6,25 @@ from .base import BaseConnector
 from .google_calendar import GoogleCalendarConnector
 from .microsoft_graph import MicrosoftGraphConnector
 from .slack import SlackConnector
+from .github import GitHubConnector
+from .jira import JiraConnector
+from .notion import NotionConnector
+from .linear import LinearConnector
+from .hubspot import HubSpotConnector
+from .salesforce import SalesforceConnector
+from .aws import AWSConnector
 
 CONNECTOR_REGISTRY: dict[str, type[BaseConnector]] = {
     "google": GoogleCalendarConnector,
     "microsoft": MicrosoftGraphConnector,
     "slack": SlackConnector,
+    "github": GitHubConnector,
+    "jira": JiraConnector,
+    "notion": NotionConnector,
+    "linear": LinearConnector,
+    "hubspot": HubSpotConnector,
+    "salesforce": SalesforceConnector,
+    "aws": AWSConnector,
 }
 
 

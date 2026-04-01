@@ -28,11 +28,15 @@ from .models import (
     PolicyInfo,
     WebhookCreate,
 )
+from .analytics import AnalyticsEngine
+from .l3_escalation import L3EscalationManager
 from .policy import PolicyEngine
+from .policy_builder import PolicyBuildRequest, build_policy
 from .mcp.annotations import tools_to_policy
 from .mcp.proxy import MCPAuthProxy
 from .proxy import ReverseProxy
 from .webhook import AlertThreshold, WebhookConfig, WebhookNotifier
+from .workflow import WorkflowEngine, WorkflowRule
 
 # ── Logging ──────────────────────────────────────────────────────────
 _LOG_DIR = Path("logs")
@@ -63,13 +67,17 @@ logger.add(
 policy_engine = PolicyEngine(policy_dir=settings.policy_dir)
 audit_logger = AuditLogger(db_path=settings.audit_db_path)
 agent_store = AgentStore()
-intent_analyzer = IntentAnalyzer()
 webhook_notifier = WebhookNotifier()
+l3_manager = L3EscalationManager(webhook_notifier=webhook_notifier)
+intent_analyzer = IntentAnalyzer(l3_callback=l3_manager.escalate)
+analytics_engine = AnalyticsEngine(db_path=settings.audit_db_path)
+workflow_engine = WorkflowEngine()
 reverse_proxy = ReverseProxy(
     policy_engine=policy_engine,
     audit_logger=audit_logger,
     intent_analyzer=intent_analyzer,
     webhook_notifier=webhook_notifier,
+    workflow_engine=workflow_engine,
 )
 
 
@@ -91,7 +99,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="AgentGate",
     description="JIT Authorization Proxy for AI Agents",
-    version="0.2.0",
+    version="0.3.0",
     docs_url="/docs" if settings.debug else None,
     redoc_url=None,
     lifespan=lifespan,
@@ -131,7 +139,7 @@ async def health():
     audit_ok = await audit_logger.is_healthy()
     return HealthResponse(
         status="ok" if audit_ok else "degraded",
-        version="0.2.0",
+        version="0.3.0",
         providers=available_providers(),
         policy_loaded=len(policy_engine.policy_names) > 0,
         agents_count=agent_store.count,
@@ -303,6 +311,230 @@ async def register_alert_threshold(
     }
 
 
+# ── Analytics (master key required) ──────────────────────────────────
+@app.get("/analytics/timeseries")
+async def analytics_timeseries(
+    interval: str = "hour",
+    agent_id: str | None = None,
+    provider: str | None = None,
+    hours: int = 24,
+    _=Depends(_require_master),
+):
+    """Time-series of request counts, deny counts, and latency."""
+    return await analytics_engine.time_series(
+        interval=interval, agent_id=agent_id, provider=provider, hours=hours,
+    )
+
+
+@app.get("/analytics/deny-trends")
+async def analytics_deny_trends(
+    agent_id: str | None = None,
+    provider: str | None = None,
+    hours: int = 24,
+    _=Depends(_require_master),
+):
+    """Top deny reasons and deny rate over time."""
+    return await analytics_engine.deny_trends(
+        agent_id=agent_id, provider=provider, hours=hours,
+    )
+
+
+@app.get("/analytics/heatmap")
+async def analytics_heatmap(
+    hours: int = 24,
+    _=Depends(_require_master),
+):
+    """Agent x provider activity heatmap data."""
+    return await analytics_engine.agent_heatmap(hours=hours)
+
+
+@app.get("/analytics/anomalies")
+async def analytics_anomalies(
+    window_minutes: int = 10,
+    threshold: float = 3.0,
+    _=Depends(_require_master),
+):
+    """Detect anomalous traffic spikes per agent."""
+    return await analytics_engine.anomaly_detection(
+        window_minutes=window_minutes, threshold_multiplier=threshold,
+    )
+
+
+@app.get("/analytics/latency")
+async def analytics_latency(
+    agent_id: str | None = None,
+    provider: str | None = None,
+    hours: int = 24,
+    _=Depends(_require_master),
+):
+    """Latency percentiles (p50, p90, p95, p99)."""
+    return await analytics_engine.latency_percentiles(
+        agent_id=agent_id, provider=provider, hours=hours,
+    )
+
+
+@app.get("/analytics/intents")
+async def analytics_intents(
+    provider: str | None = None,
+    hours: int = 24,
+    _=Depends(_require_master),
+):
+    """Intent type distribution grouped by decision."""
+    return await analytics_engine.intent_distribution(provider=provider, hours=hours)
+
+
+# ── Natural Language Policy Builder (master key required) ────────────
+@app.post("/policies/build")
+async def build_policy_from_nl(
+    request: Request,
+    _=Depends(_require_master),
+):
+    """Generate a YAML policy from natural language rule descriptions.
+
+    Body: {"name": "...", "description": "...", "provider": "...",
+           "rules": ["agents can read events", "agents cannot delete events"],
+           "default_effect": "deny", "rate_limit_per_minute": 60}
+    """
+    body = await request.json()
+    build_request = PolicyBuildRequest(
+        name=body.get("name", "custom_policy"),
+        description=body.get("description", ""),
+        provider=body.get("provider", "google"),
+        rules_nl=body.get("rules", []),
+        default_effect=body.get("default_effect", "deny"),
+        rate_limit_per_minute=body.get("rate_limit_per_minute", 60),
+        rate_limit_per_hour=body.get("rate_limit_per_hour", 1000),
+    )
+    result = build_policy(build_request)
+    return {
+        "yaml": result.yaml_content,
+        "parsed_rules": result.parsed_rules,
+        "warnings": result.warnings,
+    }
+
+
+@app.post("/policies/build-and-load")
+async def build_and_load_policy(
+    request: Request,
+    _=Depends(_require_master),
+):
+    """Generate a YAML policy from natural language and immediately load it.
+
+    Same body as /policies/build.
+    """
+    body = await request.json()
+    build_request = PolicyBuildRequest(
+        name=body.get("name", "custom_policy"),
+        description=body.get("description", ""),
+        provider=body.get("provider", "google"),
+        rules_nl=body.get("rules", []),
+        default_effect=body.get("default_effect", "deny"),
+        rate_limit_per_minute=body.get("rate_limit_per_minute", 60),
+        rate_limit_per_hour=body.get("rate_limit_per_hour", 1000),
+    )
+    result = build_policy(build_request)
+
+    if result.warnings:
+        logger.warning(f"Policy build warnings: {result.warnings}")
+
+    # Load into engine
+    from .policy import Policy, RateLimitConfig, _validate_policy_schema
+    import yaml as _yaml
+
+    policy_data = _yaml.safe_load(result.yaml_content)
+    _validate_policy_schema(policy_data, f"{build_request.name}.yaml")
+
+    rl = policy_data.get("rate_limit", {})
+    policy_engine._policies[policy_data["name"]] = Policy(
+        name=policy_data["name"],
+        description=policy_data.get("description", ""),
+        rules=policy_data.get("rules", []),
+        default_effect=policy_data.get("default_effect", "deny"),
+        default_reason=policy_data.get("default_reason", "Denied"),
+        rate_limit=RateLimitConfig(
+            enabled=rl.get("enabled", True),
+            requests_per_minute=rl.get("requests_per_minute", 60),
+            requests_per_hour=rl.get("requests_per_hour", 1000),
+        ),
+    )
+
+    # Also save to disk
+    policy_path = Path(settings.policy_dir) / f"{build_request.name}.yaml"
+    policy_path.write_text(result.yaml_content, encoding="utf-8")
+
+    return {
+        "status": "loaded",
+        "policy_name": build_request.name,
+        "yaml": result.yaml_content,
+        "parsed_rules": result.parsed_rules,
+        "warnings": result.warnings,
+        "saved_to": str(policy_path),
+    }
+
+
+# ── L3 Escalation (master key required) ──────────────────────────────
+@app.get("/l3/escalations")
+async def get_l3_escalations(_=Depends(_require_master)):
+    """View recent L3 escalation events."""
+    return {
+        "escalations": l3_manager.recent_escalations,
+        "stats": l3_manager.stats,
+    }
+
+
+@app.post("/l3/resolve/{index}")
+async def resolve_l3_escalation(
+    index: int,
+    request: Request,
+    _=Depends(_require_master),
+):
+    """Mark an L3 escalation as resolved."""
+    body = await request.json()
+    resolution = body.get("resolution", "Resolved by admin")
+    if l3_manager.resolve(index, resolution):
+        return {"status": "resolved", "index": index}
+    raise HTTPException(status_code=404, detail="Escalation not found")
+
+
+# ── Workflow Engine (master key required) ────────────────────────────
+@app.get("/workflow/rules")
+async def get_workflow_rules(_=Depends(_require_master)):
+    """List all workflow-level authorization rules."""
+    return workflow_engine.stats
+
+
+@app.post("/workflow/rules")
+async def add_workflow_rule(
+    request: Request,
+    _=Depends(_require_master),
+):
+    """Add a workflow-level rule.
+
+    Body: {"name": "...", "description": "...", "sequence": ["read", "create"],
+           "cross_provider": true, "effect": "deny", "reason": "...",
+           "window_seconds": 30}
+    """
+    body = await request.json()
+    rule = WorkflowRule(
+        name=body.get("name", "custom_rule"),
+        description=body.get("description", ""),
+        sequence=body.get("sequence", []),
+        providers=body.get("providers"),
+        cross_provider=body.get("cross_provider", False),
+        effect=body.get("effect", "deny"),
+        reason=body.get("reason", "Custom workflow rule violation"),
+        window_seconds=body.get("window_seconds", 60.0),
+    )
+    workflow_engine.add_rule(rule)
+    return {"status": "added", "rule": rule.name, "sequence": rule.sequence}
+
+
+@app.get("/workflow/alerts")
+async def get_workflow_alerts(_=Depends(_require_master)):
+    """View workflow-level alerts (non-blocking detections)."""
+    return {"alerts": workflow_engine.alerts}
+
+
 # ── MCP Auth Proxy ───────────────────────────────────────────────────
 _mcp_proxies: dict[str, MCPAuthProxy] = {}
 
@@ -397,7 +629,7 @@ async def proxy_request(request: Request, provider: str, path: str):
 async def root():
     return {
         "service": "AgentGate",
-        "version": "0.2.0",
+        "version": "0.3.0",
         "description": "JIT Authorization Proxy for AI Agents",
         "providers": available_providers(),
         "docs": "/docs" if settings.debug else "disabled",

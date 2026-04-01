@@ -1,0 +1,53 @@
+name: notion_readonly
+description: "Notion read-only — browse pages, databases, search"
+
+default_effect: deny
+default_reason: "Write operations not permitted under Notion read-only policy"
+
+rate_limit:
+  enabled: true
+  requests_per_minute: 30
+  requests_per_hour: 500
+
+rules:
+  - resource: "/pages/*"
+    methods: ["GET"]
+    effect: allow
+    reason: "Read page content"
+
+  - resource: "/databases/*"
+    methods: ["GET"]
+    effect: allow
+    reason: "Read database schema"
+
+  - resource: "/databases/*/query"
+    methods: ["POST"]
+    effect: allow
+    intent: ["read"]
+    reason: "Query database (Notion uses POST for queries)"
+
+  - resource: "/blocks/*"
+    methods: ["GET"]
+    effect: allow
+    reason: "Read block content"
+
+  - resource: "/blocks/*/children"
+    methods: ["GET"]
+    effect: allow
+    reason: "List child blocks"
+
+  - resource: "/users"
+    methods: ["GET"]
+    effect: allow
+    reason: "List workspace users"
+
+  - resource: "/users/*"
+    methods: ["GET"]
+    effect: allow
+    reason: "Read user details"
+
+  - resource: "/search"
+    methods: ["POST"]
+    effect: allow
+    intent: ["read"]
+    reason: "Search workspace (Notion uses POST for search)"

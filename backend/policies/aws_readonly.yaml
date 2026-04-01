@@ -1,0 +1,41 @@
+name: aws_readonly
+description: "AWS API Gateway read-only — list/describe resources, no invocations"
+
+default_effect: deny
+default_reason: "Write operations not permitted under AWS read-only policy"
+
+rate_limit:
+  enabled: true
+  requests_per_minute: 30
+  requests_per_hour: 500
+
+rules:
+  - resource: "/lambda/functions/*"
+    methods: ["GET"]
+    effect: allow
+    reason: "Describe Lambda functions"
+
+  - resource: "/s3/**"
+    methods: ["GET", "HEAD"]
+    effect: allow
+    reason: "Read S3 objects and list buckets"
+
+  - resource: "/lambda/functions/*/invocations"
+    methods: ["POST"]
+    effect: deny
+    reason: "Lambda invocations not permitted in read-only mode"
+
+  - resource: "/dynamodb"
+    methods: ["GET"]
+    effect: allow
+    reason: "Describe DynamoDB tables"
+
+  - resource: "/sqs/*"
+    methods: ["GET"]
+    effect: allow
+    reason: "Describe SQS queues"
+
+  - resource: "/sns/*"
+    methods: ["GET"]
+    effect: allow
+    reason: "Describe SNS topics"

@@ -1,0 +1,47 @@
+name: linear_readonly
+description: "Linear read-only — browse issues, projects, teams via GraphQL"
+
+default_effect: deny
+default_reason: "Write operations not permitted under Linear read-only policy"
+
+rate_limit:
+  enabled: true
+  requests_per_minute: 60
+  requests_per_hour: 1000
+
+rules:
+  - resource: "/graphql"
+    methods: ["POST"]
+    intent: ["read"]
+    effect: allow
+    reason: "GraphQL queries (Linear uses POST for all GraphQL, reads classified by intent)"
+
+  - resource: "/issues"
+    methods: ["GET"]
+    effect: allow
+    reason: "List issues"
+
+  - resource: "/issues/*"
+    methods: ["GET"]
+    effect: allow
+    reason: "Read issue details"
+
+  - resource: "/projects"
+    methods: ["GET"]
+    effect: allow
+    reason: "List projects"
+
+  - resource: "/projects/*"
+    methods: ["GET"]
+    effect: allow
+    reason: "Read project details"
+
+  - resource: "/teams/*"
+    methods: ["GET"]
+    effect: allow
+    reason: "View team information"
+
+  - resource: "/cycles/*"
+    methods: ["GET"]
+    effect: allow
+    reason: "View cycle details"

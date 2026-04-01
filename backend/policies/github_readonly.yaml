@@ -1,0 +1,66 @@
+name: github_readonly
+description: "GitHub read-only — list repos, issues, PRs, no modifications"
+
+default_effect: deny
+default_reason: "Write operations not permitted under GitHub read-only policy"
+
+rate_limit:
+  enabled: true
+  requests_per_minute: 60
+  requests_per_hour: 1000
+
+rules:
+  - resource: "/repos/*/*"
+    methods: ["GET", "HEAD"]
+    effect: allow
+    reason: "Read repository metadata"
+
+  - resource: "/repos/*/*/issues"
+    methods: ["GET"]
+    effect: allow
+    reason: "List issues"
+
+  - resource: "/repos/*/*/issues/*"
+    methods: ["GET"]
+    effect: allow
+    reason: "Read specific issue"
+
+  - resource: "/repos/*/*/pulls"
+    methods: ["GET"]
+    effect: allow
+    reason: "List pull requests"
+
+  - resource: "/repos/*/*/pulls/*"
+    methods: ["GET"]
+    effect: allow
+    reason: "Read specific pull request"
+
+  - resource: "/repos/*/*/contents/**"
+    methods: ["GET"]
+    effect: allow
+    reason: "Read repository contents"
+
+  - resource: "/repos/*/*/branches"
+    methods: ["GET"]
+    effect: allow
+    reason: "List branches"
+
+  - resource: "/repos/*/*/releases"
+    methods: ["GET"]
+    effect: allow
+    reason: "List releases"
+
+  - resource: "/repos/*/*/actions/**"
+    methods: ["GET"]
+    effect: allow
+    reason: "View workflow runs"
+
+  - resource: "/user/repos"
+    methods: ["GET"]
+    effect: allow
+    reason: "List user repositories"
+
+  - resource: "/orgs/*/repos"
+    methods: ["GET"]
+    effect: allow
+    reason: "List organization repositories"

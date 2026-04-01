@@ -1,0 +1,56 @@
+name: hubspot_readonly
+description: "HubSpot CRM read-only — browse contacts, companies, deals"
+
+default_effect: deny
+default_reason: "Write operations not permitted under HubSpot read-only policy"
+
+rate_limit:
+  enabled: true
+  requests_per_minute: 60
+  requests_per_hour: 1000
+
+rules:
+  - resource: "/crm/v3/objects/contacts"
+    methods: ["GET"]
+    effect: allow
+    reason: "List contacts"
+
+  - resource: "/crm/v3/objects/contacts/*"
+    methods: ["GET"]
+    effect: allow
+    reason: "Read contact details"
+
+  - resource: "/crm/v3/objects/companies"
+    methods: ["GET"]
+    effect: allow
+    reason: "List companies"
+
+  - resource: "/crm/v3/objects/companies/*"
+    methods: ["GET"]
+    effect: allow
+    reason: "Read company details"
+
+  - resource: "/crm/v3/objects/deals"
+    methods: ["GET"]
+    effect: allow
+    reason: "List deals"
+
+  - resource: "/crm/v3/objects/deals/*"
+    methods: ["GET"]
+    effect: allow
+    reason: "Read deal details"
+
+  - resource: "/crm/v3/objects/tickets"
+    methods: ["GET"]
+    effect: allow
+    reason: "List tickets"
+
+  - resource: "/crm/v3/objects/tickets/*"
+    methods: ["GET"]
+    effect: allow
+    reason: "Read ticket details"
+
+  - resource: "/crm/v3/pipelines/*"
+    methods: ["GET"]
+    effect: allow
+    reason: "View pipeline configuration"

@@ -19,6 +19,7 @@ from .path_normalize import normalize_path
 from .policy import PolicyEngine
 from .rate_limiter import RateLimiter
 from .webhook import WebhookNotifier
+from .workflow import WorkflowEngine
 
 # Headers that should not be forwarded from upstream responses
 _EXCLUDED_RESPONSE_HEADERS = frozenset(
@@ -40,12 +41,14 @@ class ReverseProxy:
         audit_logger: AuditLogger,
         intent_analyzer: IntentAnalyzer,
         webhook_notifier: WebhookNotifier | None = None,
+        workflow_engine: WorkflowEngine | None = None,
     ) -> None:
         self._policy = policy_engine
         self._audit = audit_logger
         self._intent = intent_analyzer
         self._rate_limiter = RateLimiter()
         self._webhook = webhook_notifier
+        self._workflow = workflow_engine or WorkflowEngine()
         self._client = httpx.AsyncClient(timeout=30.0)
 
     async def handle(
@@ -111,6 +114,23 @@ class ReverseProxy:
         body_bytes = await request.body()
         intent = await self._intent.analyze(method, proxy_path, provider, body_bytes)
 
+        # Workflow-level check (multi-step sequence enforcement)
+        wf_decision = self._workflow.evaluate(
+            agent["agent_id"], intent.intent_type, intent.resource_type, provider,
+        )
+        if not wf_decision.allowed:
+            return await self._handle_deny(
+                agent=agent,
+                method=method,
+                proxy_path=proxy_path,
+                provider=provider,
+                reason=wf_decision.reason or "Workflow policy violation",
+                policy_name=policy_name,
+                intent=intent,
+                request_id=request_id,
+                start=start,
+            )
+
         # Evaluate policy
         decision = self._policy.evaluate(policy_name, method, proxy_path, intent=intent)
 
@@ -129,6 +149,11 @@ class ReverseProxy:
 
         # Record request for rate limiting (only on allow)
         self._rate_limiter.record(agent["agent_id"])
+
+        # Record workflow step (only on allow — denied steps don't count)
+        self._workflow.record(
+            agent["agent_id"], intent.intent_type, intent.resource_type, provider,
+        )
 
         return await self._forward_request(
             request=request,

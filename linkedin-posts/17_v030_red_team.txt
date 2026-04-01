@@ -1,0 +1,51 @@
+I tried to kill my own product with AI. It won.
+
+I built a full-LLM competitor to attack AgentGate's market position.
+3 AI agents. 19 test scenarios. Sarcasm, slang, double negatives.
+
+The LLM approach promised "deeper understanding."
+
+Here's what actually happened:
+
+AgentGate (regex)    → 100% accuracy, 0.16ms, $0/request
+LLM competitor       →  94% accuracy, 721ms, $0.006/request
+
+4,427x slower. Infinite cost ratio. And less accurate.
+
+Why?
+Authorization is a binary gate. Allow or deny.
+HTTP method IS the ground truth — not the user's feelings about it.
+A DELETE is a delete whether you say "nuke it" or "please remove."
+
+But the exercise revealed real gaps.
+So I fixed them all in v0.3.0:
+
+→ 10 providers (was 3)
+  Google, Microsoft, Slack, GitHub, Jira,
+  Notion, Linear, HubSpot, Salesforce, AWS
+
+→ Workflow-level authorization (NEW)
+  Detects cross-provider data exfiltration.
+  read on Google → create on Slack = blocked.
+
+→ L3 async escalation
+  Low-confidence intents fire webhooks for human review.
+  Never blocks the <5ms deterministic path.
+
+→ 6 analytics endpoints
+  Time series. Deny trends. Anomaly detection.
+  Latency percentiles. Intent distribution. Agent heatmaps.
+
+→ Natural language policy builder
+  "Agents can read issues but cannot delete repos"
+  → Valid YAML policy, instantly loaded.
+
+277 tests. Zero regressions.
+
+Red-team your own product.
+You'll learn more from trying to break it
+than from building the next feature.
+
+https://github.com/yoned0609/AgentGate
+
+#AIAgents #Security #RedTeam #OpenSource #BuildInPublic
