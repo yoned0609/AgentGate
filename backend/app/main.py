@@ -215,13 +215,14 @@ async def list_policies(_=Depends(_require_master)):
 
 
 # ── Audit Logs ───────────────────────────────────────────────────────
-@app.get("/audit/logs", response_model=AuditLogList)
+@app.get("/audit/logs")
 async def get_audit_logs(
     agent_id: str | None = None,
     decision: str | None = None,
     provider: str | None = None,
     limit: int = 50,
     offset: int = 0,
+    pretty: bool = False,
     _=Depends(_require_master),
 ):
     logs, total = await audit_logger.query(
@@ -231,7 +232,15 @@ async def get_audit_logs(
         limit=limit,
         offset=offset,
     )
-    return AuditLogList(logs=logs, total=total)
+    data = AuditLogList(logs=logs, total=total)
+    if pretty:
+        import json as _json
+
+        return Response(
+            content=_json.dumps(data.model_dump(), indent=2, ensure_ascii=False),
+            media_type="application/json",
+        )
+    return data
 
 
 @app.get("/audit/stats")

@@ -1,0 +1,30 @@
+# AgentGate Strict Read-Only Policy
+# Allows only safe read methods on any resource. All writes are denied.
+
+name: read_only
+description: "Strict read-only access — permits GET and HEAD on any resource, denies all write operations"
+
+rules:
+  # Allow GET and HEAD on any resource
+  - resource: "/**"
+    methods: ["GET", "HEAD"]
+    effect: allow
+
+  # Explicitly deny all write operations on any resource
+  - resource: "/**"
+    methods: ["POST", "PUT", "PATCH", "DELETE"]
+    effect: deny
+    reason: "Write operations are not permitted under the read_only policy"
+
+# Default: deny anything not explicitly allowed
+default_effect: deny
+default_reason: "No matching rule found — denied by read_only policy"
+
+time_restrictions:
+  enabled: false
+
+# Rate limiting (tight limits for read-only agents)
+rate_limit:
+  enabled: true
+  requests_per_minute: 10
+  requests_per_hour: 100

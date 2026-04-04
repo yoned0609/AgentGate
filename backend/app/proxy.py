@@ -12,12 +12,14 @@ from fastapi import Request, Response
 from loguru import logger
 
 from .audit import AuditLogger
+from .config import settings
 from .connectors import get_connector
 from .connectors.base import BaseConnector
 from .intent import IntentAnalyzer, IntentResult
 from .path_normalize import normalize_path
 from .policy import PolicyEngine
 from .rate_limiter import RateLimiter
+from .test_mock import build_mock_response
 from .webhook import WebhookNotifier
 from .workflow import WorkflowEngine
 
@@ -295,7 +297,37 @@ class ReverseProxy:
         request_id: str,
         start: float,
     ) -> Response:
-        """Forward the request to the upstream target via connector."""
+        """Forward the request to the upstream target via connector (or return mock in test mode)."""
+
+        # --- Test mode: return mock response instead of calling upstream ---
+        if settings.test_mode:
+            mock_status, mock_headers, mock_body = build_mock_response(method, proxy_path)
+            latency = (time.perf_counter() - start) * 1000
+            logger.info(
+                f"[{request_id}] TEST_MODE {method} {provider}:{proxy_path} "
+                f"-> {mock_status} ({latency:.1f}ms) | agent={agent['name']}"
+            )
+            await self._audit.log(
+                agent_id=agent["agent_id"],
+                agent_name=agent["name"],
+                method=method,
+                path=proxy_path,
+                provider=provider,
+                decision="allow",
+                intent=intent.intent_type,
+                intent_confidence=intent.confidence,
+                status_code=mock_status,
+                latency_ms=latency,
+                request_id=request_id,
+            )
+            return Response(
+                content=mock_body,
+                status_code=mock_status,
+                headers=mock_headers,
+                media_type="application/json",
+            )
+
+        # --- Normal mode: forward to upstream ---
         target_url = connector.build_target_url(proxy_path, str(request.url.query))
         forward_headers = connector.build_forward_headers(request)
 

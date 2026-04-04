@@ -9,6 +9,7 @@ services:
       - DEBUG=${DEBUG:-false}
       - MASTER_API_KEY=${MASTER_API_KEY:-ag_dev_change_me_in_production}
       - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000}
+      - TEST_MODE=${TEST_MODE:-false}
       - AUDIT_DB_PATH=/app/data/audit.db
     volumes:
       - agentgate-data:/app/data

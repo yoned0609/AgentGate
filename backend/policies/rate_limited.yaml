@@ -1,0 +1,30 @@
+# AgentGate Rate-Limited Policy
+# Read + write access with very tight rate limits. Ideal for testing and sandbox environments.
+
+name: rate_limited
+description: "Rate-limited read/write access — allows GET, POST, PUT, PATCH but denies DELETE, with very tight rate limits"
+
+rules:
+  # Allow read and write on common resource patterns
+  - resource: "/**"
+    methods: ["GET", "POST", "PUT", "PATCH"]
+    effect: allow
+
+  # Deny delete on any resource
+  - resource: "/**"
+    methods: ["DELETE"]
+    effect: deny
+    reason: "Delete operations are not permitted under the rate_limited policy"
+
+# Default: deny anything not explicitly allowed
+default_effect: deny
+default_reason: "No matching rule found — denied by rate_limited policy"
+
+time_restrictions:
+  enabled: false
+
+# Rate limiting (very tight limits for testing/sandbox)
+rate_limit:
+  enabled: true
+  requests_per_minute: 5
+  requests_per_hour: 50

@@ -6,6 +6,7 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     # Server
     debug: bool = False
+    test_mode: bool = False
     host: str = "0.0.0.0"
     port: int = 8100
 

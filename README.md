@@ -100,9 +100,19 @@ AI Agent (MCP Client)
 
 ---
 
-## Quick Start
+## Quick Start (5 minutes)
 
-### Local
+### 1. Start the server
+
+**Docker (recommended):**
+
+```bash
+git clone https://github.com/yoned0609/AgentGate.git
+cd AgentGate
+docker compose up --build
+```
+
+**Local:**
 
 ```bash
 cd backend
@@ -111,46 +121,112 @@ cp .env.example .env   # Change MASTER_API_KEY before deploying!
 python3 -m uvicorn app.main:app --reload --port 8100
 ```
 
-### Docker
+### 2. Register an agent and make your first request
 
 ```bash
-docker compose up --build
+# Step 1: Register an agent (returns an api_key)
+curl -s -X POST http://localhost:8100/agents \
+  -H "X-Master-Key: ag_dev_change_me_in_production" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "my-agent", "policy": "default", "provider": "google"}' | jq .
+
+# Step 2: Use the returned api_key as X-Agent-Key to proxy a request
+# (allowed — GET is read-only under the "default" policy)
+curl -s http://localhost:8100/proxy/google/calendars/primary/events \
+  -H "X-Agent-Key: <api_key_from_step1>" \
+  -H "Authorization: Bearer <google_oauth_token>"
+
+# Step 3: Try a denied request (DELETE is blocked by policy)
+curl -s -X DELETE http://localhost:8100/proxy/google/calendars/primary/events/abc123 \
+  -H "X-Agent-Key: <api_key_from_step1>" | jq .
+
+# Step 4: View audit logs (human-readable with ?pretty=true)
+curl -s "http://localhost:8100/audit/logs?pretty=true" \
+  -H "X-Master-Key: ag_dev_change_me_in_production" | head -40
 ```
 
-### Basic Usage
+### Test Mode (no real API tokens needed)
+
+Set `TEST_MODE=true` to get mock responses without connecting to real APIs:
 
 ```bash
-# Register an agent
-curl -X POST http://localhost:8100/agents \
-  -H "X-Master-Key: ag_dev_change_me_in_production" \
-  -H "Content-Type: application/json" \
-  -d '{"name": "my-agent", "policy": "default", "provider": "google"}'
+# Docker
+TEST_MODE=true docker compose up --build
 
-# Proxy request (allowed — GET is read-only)
-curl http://localhost:8100/proxy/google/calendars/primary/events \
-  -H "X-Agent-Key: <api_key>" \
-  -H "Authorization: Bearer <oauth_token>"
+# Local
+TEST_MODE=true python3 -m uvicorn app.main:app --reload --port 8100
+```
 
-# Proxy request (denied — DELETE blocked by policy)
-curl -X DELETE http://localhost:8100/proxy/google/calendars/primary/events/abc \
-  -H "X-Agent-Key: <api_key>"
+Then all proxy requests return realistic mock data — perfect for verifying policies, rate limits, and audit logging.
 
-# View audit logs
-curl http://localhost:8100/audit/logs \
-  -H "X-Master-Key: ag_dev_change_me_in_production"
+```bash
+# Works without a real Google OAuth token!
+curl -s http://localhost:8100/proxy/google/calendars/primary/events \
+  -H "X-Agent-Key: <api_key>" | jq .
+```
 
-# Build a policy from natural language
-curl -X POST http://localhost:8100/policies/build \
-  -H "X-Master-Key: ag_dev_change_me_in_production" \
-  -H "Content-Type: application/json" \
-  -d '{"description": "Allow read-only access to GitHub repos and issues"}'
+### Authentication Headers
+
+| Header | Purpose | When to use |
+|--------|---------|-------------|
+| `X-Master-Key` | Admin operations (register agents, view logs, manage policies) | Management endpoints |
+| `X-Agent-Key` | Per-agent proxy requests | `/proxy/*` and `/mcp/*` endpoints |
+| `Authorization` | Upstream API credentials (e.g., `Bearer <oauth_token>`) | Forwarded to the SaaS API |
+
+### Using with AI SDKs
+
+AgentGate works as a drop-in proxy. Point your SDK's base URL at AgentGate instead of the upstream API.
+
+**LangChain (Python):**
+
+```python
+from langchain_google_calendar import GoogleCalendarAPIWrapper
+
+# Instead of calling Google directly, proxy through AgentGate
+wrapper = GoogleCalendarAPIWrapper(
+    credentials=your_credentials,
+    # Override the API endpoint to route through AgentGate
+    api_resource_kwargs={
+        "http": build_http_with_base_url("http://localhost:8100/proxy/google")
+    }
+)
+```
+
+**OpenAI-compatible / httpx (Python):**
+
+```python
+import httpx
+
+# Any HTTP client — just change the base URL and add X-Agent-Key
+resp = httpx.get(
+    "http://localhost:8100/proxy/google/calendars/primary/events",
+    headers={
+        "X-Agent-Key": "your_agent_api_key",
+        "Authorization": "Bearer <google_oauth_token>",
+    },
+)
+```
+
+**fetch / axios (TypeScript):**
+
+```typescript
+// Replace the API base URL with AgentGate's proxy URL
+const response = await fetch(
+  'http://localhost:8100/proxy/github/repos/owner/repo/issues',
+  {
+    headers: {
+      'X-Agent-Key': 'your_agent_api_key',
+      'Authorization': 'Bearer <github_token>',
+    },
+  }
+);
 ```
 
 ### MCP Auth Proxy
 
 ```bash
 # Register an MCP server with tool annotations
-curl -X POST http://localhost:8100/mcp/servers \
+curl -s -X POST http://localhost:8100/mcp/servers \
   -H "X-Master-Key: ag_dev_change_me_in_production" \
   -H "Content-Type: application/json" \
   -d '{
@@ -163,10 +239,19 @@ curl -X POST http://localhost:8100/mcp/servers \
   }'
 
 # Send JSON-RPC request through AgentGate
-curl -X POST http://localhost:8100/mcp/my-mcp \
+curl -s -X POST http://localhost:8100/mcp/my-mcp \
   -H "X-Agent-Key: <api_key>" \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"read_calendar","arguments":{}}}'
+```
+
+### Build a Policy from Natural Language
+
+```bash
+curl -s -X POST http://localhost:8100/policies/build \
+  -H "X-Master-Key: ag_dev_change_me_in_production" \
+  -H "Content-Type: application/json" \
+  -d '{"description": "Allow read-only access to GitHub repos and issues"}' | jq .
 ```
 
 ---
@@ -260,7 +345,17 @@ rate_limit:
   requests_per_hour: 500
 ```
 
-12 built-in policy templates are included for all supported providers. See [`backend/policies/`](backend/policies/).
+Built-in policy templates are included for all supported providers:
+
+| Policy | Description | Rate Limit |
+|--------|-------------|------------|
+| `default` | Read-only Google Calendar | 30/min, 500/hr |
+| `readwrite` | Read + create, no delete | 60/min, 1000/hr |
+| `read_only` | Strict read-only (GET/HEAD only, any provider) | 10/min, 100/hr |
+| `rate_limited` | Read + write with tight limits (sandbox/testing) | 5/min, 50/hr |
+| `*_readonly` | Per-provider read-only (github, slack, jira, etc.) | 30/min, 500/hr |
+
+See [`backend/policies/`](backend/policies/) for all templates.
 
 ---
 

@@ -1,0 +1,184 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 628" font-family="'Segoe UI', system-ui, -apple-system, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0c0f1a"/>
+      <stop offset="50%" stop-color="#111827"/>
+      <stop offset="100%" stop-color="#0c0f1a"/>
+    </linearGradient>
+    <linearGradient id="shield" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#818cf8"/>
+      <stop offset="100%" stop-color="#4f46e5"/>
+    </linearGradient>
+    <linearGradient id="shieldInner" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#312e81"/>
+      <stop offset="100%" stop-color="#1e1b4b"/>
+    </linearGradient>
+    <linearGradient id="greenLine" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#22c55e" stop-opacity="0"/>
+      <stop offset="30%" stop-color="#22c55e"/>
+      <stop offset="70%" stop-color="#22c55e"/>
+      <stop offset="100%" stop-color="#22c55e" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="redLine" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#ef4444" stop-opacity="0"/>
+      <stop offset="50%" stop-color="#ef4444"/>
+      <stop offset="100%" stop-color="#ef4444" stop-opacity="0.2"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="softGlow">
+      <feGaussianBlur stdDeviation="15" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#000" flood-opacity="0.4"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="628" fill="url(#bg)"/>
+
+  <!-- Subtle grid pattern -->
+  <g opacity="0.03" stroke="#818cf8" stroke-width="0.5">
+    <line x1="0" y1="0" x2="0" y2="628"/><line x1="60" y1="0" x2="60" y2="628"/>
+    <line x1="120" y1="0" x2="120" y2="628"/><line x1="180" y1="0" x2="180" y2="628"/>
+    <line x1="240" y1="0" x2="240" y2="628"/><line x1="300" y1="0" x2="300" y2="628"/>
+    <line x1="360" y1="0" x2="360" y2="628"/><line x1="420" y1="0" x2="420" y2="628"/>
+    <line x1="480" y1="0" x2="480" y2="628"/><line x1="540" y1="0" x2="540" y2="628"/>
+    <line x1="600" y1="0" x2="600" y2="628"/><line x1="660" y1="0" x2="660" y2="628"/>
+    <line x1="720" y1="0" x2="720" y2="628"/><line x1="780" y1="0" x2="780" y2="628"/>
+    <line x1="840" y1="0" x2="840" y2="628"/><line x1="900" y1="0" x2="900" y2="628"/>
+    <line x1="960" y1="0" x2="960" y2="628"/><line x1="1020" y1="0" x2="1020" y2="628"/>
+    <line x1="1080" y1="0" x2="1080" y2="628"/><line x1="1140" y1="0" x2="1140" y2="628"/>
+    <line x1="0" y1="60" x2="1200" y2="60"/><line x1="0" y1="120" x2="1200" y2="120"/>
+    <line x1="0" y1="180" x2="1200" y2="180"/><line x1="0" y1="240" x2="1200" y2="240"/>
+    <line x1="0" y1="300" x2="1200" y2="300"/><line x1="0" y1="360" x2="1200" y2="360"/>
+    <line x1="0" y1="420" x2="1200" y2="420"/><line x1="0" y1="480" x2="1200" y2="480"/>
+    <line x1="0" y1="540" x2="1200" y2="540"/>
+  </g>
+
+  <!-- Ambient glow behind shield -->
+  <ellipse cx="600" cy="300" rx="180" ry="180" fill="#6366f1" opacity="0.06" filter="url(#softGlow)"/>
+
+  <!-- ===== LEFT SIDE: AI Agent ===== -->
+  <g transform="translate(100, 235)">
+    <!-- Agent box -->
+    <rect width="180" height="90" rx="14" fill="#1e293b" stroke="#334155" stroke-width="1.5" filter="url(#shadow)"/>
+    <!-- Robot icon -->
+    <rect x="24" y="20" width="36" height="28" rx="6" fill="none" stroke="#a78bfa" stroke-width="2"/>
+    <circle cx="35" cy="32" r="3" fill="#a78bfa"/>
+    <circle cx="47" cy="32" r="3" fill="#a78bfa"/>
+    <line x1="42" y1="10" x2="42" y2="20" stroke="#a78bfa" stroke-width="2"/>
+    <circle cx="42" cy="8" r="3" fill="#a78bfa"/>
+    <rect x="28" y="52" width="8" height="10" rx="2" fill="#a78bfa" opacity="0.5"/>
+    <rect x="46" y="52" width="8" height="10" rx="2" fill="#a78bfa" opacity="0.5"/>
+    <!-- Label -->
+    <text x="78" y="36" fill="#e2e8f0" font-size="16" font-weight="700">AI Agent</text>
+    <text x="78" y="56" fill="#94a3b8" font-size="12">LangChain / MCP</text>
+  </g>
+
+  <!-- Arrow: Agent → Shield (allowed path) -->
+  <line x1="285" y1="265" x2="440" y2="265" stroke="url(#greenLine)" stroke-width="2.5" stroke-dasharray="8 4">
+    <animate attributeName="stroke-dashoffset" from="24" to="0" dur="1.5s" repeatCount="indefinite"/>
+  </line>
+  <text x="362" y="252" text-anchor="middle" fill="#86efac" font-size="11" font-weight="600">GET /events</text>
+
+  <!-- Arrow: Agent → Shield (denied path) -->
+  <line x1="285" y1="310" x2="440" y2="310" stroke="url(#redLine)" stroke-width="2.5" stroke-dasharray="8 4">
+    <animate attributeName="stroke-dashoffset" from="24" to="0" dur="1.5s" repeatCount="indefinite"/>
+  </line>
+  <text x="362" y="332" text-anchor="middle" fill="#fca5a5" font-size="11" font-weight="600">DELETE /events</text>
+
+  <!-- ===== CENTER: Shield (AgentGate) ===== -->
+  <g transform="translate(600, 288)" filter="url(#glow)">
+    <!-- Shield shape -->
+    <path d="M0,-120 L95,-85 L95,20 C95,75 50,115 0,135 C-50,115 -95,75 -95,20 L-95,-85 Z"
+          fill="url(#shield)" opacity="0.95"/>
+    <path d="M0,-100 L78,-70 L78,15 C78,60 42,95 0,112 C-42,95 -78,60 -78,15 L-78,-70 Z"
+          fill="url(#shieldInner)"/>
+    <!-- Lock icon inside shield -->
+    <rect x="-18" y="-20" width="36" height="30" rx="5" fill="none" stroke="#a5b4fc" stroke-width="2.5"/>
+    <path d="M-12,-20 L-12,-32 C-12,-45 12,-45 12,-32 L12,-20" fill="none" stroke="#a5b4fc" stroke-width="2.5"/>
+    <circle cx="0" cy="-4" r="5" fill="#a5b4fc"/>
+    <line x1="0" y1="0" x2="0" y2="8" stroke="#a5b4fc" stroke-width="2.5"/>
+  </g>
+
+  <!-- AgentGate label below shield -->
+  <text x="600" y="458" text-anchor="middle" fill="#e2e8f0" font-size="26" font-weight="800" letter-spacing="2">AgentGate</text>
+  <text x="600" y="482" text-anchor="middle" fill="#94a3b8" font-size="13" letter-spacing="1">AUTHORIZATION PROXY FOR AI AGENTS</text>
+
+  <!-- ===== RIGHT SIDE: Outcomes ===== -->
+
+  <!-- Allowed → SaaS APIs -->
+  <line x1="700" y1="240" x2="830" y2="205" stroke="#22c55e" stroke-width="2" opacity="0.7"/>
+  <polygon points="830,200 840,210 828,210" fill="#22c55e" opacity="0.7"/>
+
+  <g transform="translate(840, 160)">
+    <rect width="250" height="85" rx="14" fill="#1e293b" stroke="#22c55e" stroke-width="1.5" opacity="0.9" filter="url(#shadow)"/>
+    <!-- Check icon -->
+    <circle cx="32" cy="42" r="16" fill="#065f46" stroke="#22c55e" stroke-width="1.5"/>
+    <polyline points="23,42 29,48 41,36" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- Text -->
+    <text x="60" y="32" fill="#86efac" font-size="14" font-weight="700">ALLOW</text>
+    <text x="60" y="52" fill="#94a3b8" font-size="12">Forward to Google, Slack,</text>
+    <text x="60" y="68" fill="#94a3b8" font-size="12">GitHub, Jira + 6 more</text>
+  </g>
+
+  <!-- Denied → Blocked -->
+  <line x1="700" y1="310" x2="830" y2="355" stroke="#ef4444" stroke-width="2" opacity="0.7"/>
+  <polygon points="830,350 840,360 828,360" fill="#ef4444" opacity="0.7"/>
+
+  <g transform="translate(840, 310)">
+    <rect width="250" height="85" rx="14" fill="#1e293b" stroke="#ef4444" stroke-width="1.5" opacity="0.9" filter="url(#shadow)"/>
+    <!-- X icon -->
+    <circle cx="32" cy="42" r="16" fill="#7f1d1d" stroke="#ef4444" stroke-width="1.5"/>
+    <line x1="23" y1="33" x2="41" y2="51" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="41" y1="33" x2="23" y2="51" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"/>
+    <!-- Text -->
+    <text x="60" y="32" fill="#fca5a5" font-size="14" font-weight="700">DENY</text>
+    <text x="60" y="52" fill="#94a3b8" font-size="12">403 + structured reason</text>
+    <text x="60" y="68" fill="#94a3b8" font-size="12">+ audit log + webhook alert</text>
+  </g>
+
+  <!-- ===== BOTTOM: Key stats ===== -->
+  <g transform="translate(0, 520)">
+    <rect x="60" y="0" width="1080" height="70" rx="12" fill="#1e293b" stroke="#334155" stroke-width="1" opacity="0.8"/>
+
+    <!-- Stat 1: Latency -->
+    <text x="170" y="28" text-anchor="middle" fill="#818cf8" font-size="22" font-weight="800">0.16 ms</text>
+    <text x="170" y="50" text-anchor="middle" fill="#64748b" font-size="12">Auth latency</text>
+
+    <!-- Divider -->
+    <line x1="310" y1="12" x2="310" y2="58" stroke="#334155" stroke-width="1"/>
+
+    <!-- Stat 2: Accuracy -->
+    <text x="430" y="28" text-anchor="middle" fill="#818cf8" font-size="22" font-weight="800">100%</text>
+    <text x="430" y="50" text-anchor="middle" fill="#64748b" font-size="12">Policy accuracy</text>
+
+    <!-- Divider -->
+    <line x1="560" y1="12" x2="560" y2="58" stroke="#334155" stroke-width="1"/>
+
+    <!-- Stat 3: Providers -->
+    <text x="680" y="28" text-anchor="middle" fill="#818cf8" font-size="22" font-weight="800">10</text>
+    <text x="680" y="50" text-anchor="middle" fill="#64748b" font-size="12">Providers</text>
+
+    <!-- Divider -->
+    <line x1="800" y1="12" x2="800" y2="58" stroke="#334155" stroke-width="1"/>
+
+    <!-- Stat 4: Red team -->
+    <text x="940" y="28" text-anchor="middle" fill="#818cf8" font-size="22" font-weight="800">40/40</text>
+    <text x="940" y="50" text-anchor="middle" fill="#64748b" font-size="12">Red team attacks survived</text>
+  </g>
+
+  <!-- Top tagline -->
+  <text x="600" y="60" text-anchor="middle" fill="#f1f5f9" font-size="24" font-weight="700">The authorization layer MCP doesn't have.</text>
+  <text x="600" y="90" text-anchor="middle" fill="#64748b" font-size="14">Real-time intent analysis · YAML policies · Per-agent rate limiting · Full audit trail</text>
+
+  <!-- Open source badge -->
+  <g transform="translate(540, 108)">
+    <rect width="120" height="26" rx="13" fill="#1e293b" stroke="#6366f1" stroke-width="1"/>
+    <text x="60" y="17" text-anchor="middle" fill="#a5b4fc" font-size="11" font-weight="600">Open Source · MIT</text>
+  </g>
+</svg>
