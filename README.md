@@ -106,13 +106,19 @@ See AgentGate in action — no setup required:
 
 ### Security: Allow vs Block
 
+An agent reads calendar events (200 OK), then tries to delete one — the policy engine blocks it instantly (403) with a structured reason and suggestion.
+
 ![Security Demo](assets/demos/demo_security.gif)
 
 ### Governance: Audit Trail & Export
 
+Two agents with different policies generate mixed allow/deny traffic. Every decision is recorded in the audit log with agent name, intent, and latency — exportable as JSON or CSV.
+
 ![Governance Demo](assets/demos/demo_governance.gif)
 
 ### Builder: Rate Limiting & Policy Comparison
+
+A rate-limited agent hits 429 after 5 requests. Two agents with different policies send the same POST — one is allowed, the other denied. A YAML policy is generated from plain English.
 
 ![Builder Demo](assets/demos/demo_builder.gif)
 
