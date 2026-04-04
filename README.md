@@ -100,6 +100,26 @@ AI Agent (MCP Client)
 
 ---
 
+## Demo
+
+See AgentGate in action — no setup required:
+
+### Security: Allow vs Block
+
+![Security Demo](assets/demos/demo_security.gif)
+
+### Governance: Audit Trail & Export
+
+![Governance Demo](assets/demos/demo_governance.gif)
+
+### Builder: Rate Limiting & Policy Comparison
+
+![Builder Demo](assets/demos/demo_builder.gif)
+
+> Run these demos yourself: `TEST_MODE=true docker compose up --build && ./scripts/demo.sh`
+
+---
+
 ## Quick Start (5 minutes)
 
 ### 1. Start the server
