@@ -1,0 +1,42 @@
+# AgentGate Multi-Agent Demo — Policy Configuration
+# Defines security policies for inter-agent communication
+
+blocked_patterns:
+  pii:
+    - pattern: '\b\d{3}-\d{4}-\d{4}\b'
+      label: "Phone number"
+    - pattern: '\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+      label: "Email address"
+    - pattern: '\b\d{4}-\d{4}-\d{4}-\d{4}\b'
+      label: "Credit card number"
+    - pattern: '\b\d{3}-\d{2}-\d{4}\b'
+      label: "SSN"
+    - pattern: '\bMy\s*Number\s*[::]?\s*\d+'
+      label: "National ID"
+
+  forbidden_words:
+    - pattern: 'DROP\s+TABLE'
+      label: "SQL injection"
+    - pattern: '<script[^>]*>'
+      label: "XSS payload"
+    - pattern: 'rm\s+-rf\s+/'
+      label: "Dangerous shell command"
+    - pattern: 'CONFIDENTIAL_KEY_\w+'
+      label: "Confidential key"
+
+masking:
+  # mask mode: replace detected patterns with *** and continue delivery
+  # block mode: reject the entire message
+  pii: mask
+  forbidden_words: block
+
+agent_permissions:
+  orchestrator:
+    can_send_to: ["executor", "reviewer"]
+    max_message_size: 10000
+  executor:
+    can_send_to: ["orchestrator"]
+    max_message_size: 50000
+  reviewer:
+    can_send_to: ["orchestrator"]
+    max_message_size: 50000
