@@ -126,7 +126,7 @@ A rate-limited agent hits 429 after 5 requests. Two agents with different polici
 
 Three AI agents (Orchestrator, Executor, Reviewer) collaborate through AgentGate. Every inter-agent message is inspected — PII is auto-masked, SQL injection payloads are blocked, and unauthorized routing (Executor → Reviewer) is denied.
 
-![Multi-Agent Demo](assets/demos/demo_multi_agent.gif)
+[![Multi-Agent Demo](https://asciinema.org/a/ZZ7Y676fiDoZ4Bx4.svg)](https://asciinema.org/a/ZZ7Y676fiDoZ4Bx4)
 
 > Run these demos yourself: `TEST_MODE=true docker compose up --build && ./scripts/demo.sh`
 > Multi-agent demo: `python3 demos/multi_agent/main.py`
