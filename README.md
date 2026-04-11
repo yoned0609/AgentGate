@@ -128,7 +128,14 @@ Three AI agents (Orchestrator, Executor, Reviewer) collaborate through AgentGate
 
 [![Multi-Agent Demo](https://asciinema.org/a/ZZ7Y676fiDoZ4Bx4.svg)](https://asciinema.org/a/ZZ7Y676fiDoZ4Bx4)
 
+### Semantic Poka-yoke: Response-Level Business Rule Validation
+
+AgentGate validates API responses *before* they reach the AI agent. Default rules block PII leakage (credit cards, SSN, My Number), credential exposure (API keys, passwords), and injection attacks — while audit-mode rules flag financial anomalies without blocking. Custom rules can be added at runtime via API.
+
+[![Semantic Poka-yoke Demo](https://asciinema.org/a/vqsz1GaY20Qp1gGc.svg)](https://asciinema.org/a/vqsz1GaY20Qp1gGc)
+
 > Run these demos yourself: `TEST_MODE=true docker compose up --build && ./scripts/demo.sh`
+> Semantic Poka-yoke demo: `./scripts/demo_semantic.sh`
 > Multi-agent demo: `python3 demos/multi_agent/main.py`
 
 ---
