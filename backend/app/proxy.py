@@ -9,6 +9,7 @@ from typing import Any
 
 import httpx
 from fastapi import Request, Response
+from fastapi.responses import StreamingResponse
 from loguru import logger
 
 from .audit import AuditLogger
@@ -19,6 +20,12 @@ from .intent import IntentAnalyzer, IntentResult
 from .path_normalize import normalize_path
 from .policy import PolicyEngine
 from .rate_limiter import RateLimiter
+from .semantic_rules import (
+    SemanticValidator,
+    StreamingValidator,
+    ValidationResult as SemanticResult,
+    classify_risk,
+)
 from .test_mock import build_mock_response
 from .webhook import WebhookNotifier
 from .workflow import WorkflowEngine
@@ -44,6 +51,8 @@ class ReverseProxy:
         intent_analyzer: IntentAnalyzer,
         webhook_notifier: WebhookNotifier | None = None,
         workflow_engine: WorkflowEngine | None = None,
+        semantic_validator: SemanticValidator | None = None,
+        streaming_enabled: bool = False,
     ) -> None:
         self._policy = policy_engine
         self._audit = audit_logger
@@ -51,6 +60,8 @@ class ReverseProxy:
         self._rate_limiter = RateLimiter()
         self._webhook = webhook_notifier
         self._workflow = workflow_engine or WorkflowEngine()
+        self._semantic = semantic_validator
+        self._streaming_enabled = streaming_enabled
         self._client = httpx.AsyncClient(timeout=30.0)
 
     async def handle(
@@ -302,6 +313,22 @@ class ReverseProxy:
         # --- Test mode: return mock response instead of calling upstream ---
         if settings.test_mode:
             mock_status, mock_headers, mock_body = build_mock_response(method, proxy_path)
+
+            # Semantic Poka-yoke: validate mock response
+            semantic_block = await self._semantic_intercept(
+                response_body=mock_body.encode("utf-8") if isinstance(mock_body, str) else mock_body,
+                provider=provider,
+                path=proxy_path,
+                method=method,
+                content_type="application/json",
+                agent=agent,
+                intent=intent,
+                request_id=request_id,
+                start=start,
+            )
+            if semantic_block is not None:
+                return semantic_block
+
             latency = (time.perf_counter() - start) * 1000
             logger.info(
                 f"[{request_id}] TEST_MODE {method} {provider}:{proxy_path} "
@@ -331,6 +358,32 @@ class ReverseProxy:
         target_url = connector.build_target_url(proxy_path, str(request.url.query))
         forward_headers = connector.build_forward_headers(request)
 
+        # Decide buffer vs stream based on risk classification.
+        # Streaming mode uses httpx.stream() + per-chunk validation.
+        # It is only used in non-test mode when semantic rules are loaded
+        # and the risk level is "stream" (low-risk GET endpoints).
+        risk = classify_risk(provider, proxy_path, method) if self._semantic else "buffer"
+        use_streaming = (
+            risk == "stream"
+            and self._semantic is not None
+            and not settings.test_mode
+            and self._streaming_enabled
+        )
+
+        if use_streaming:
+            return await self._forward_request_streaming(
+                target_url=target_url,
+                forward_headers=forward_headers,
+                agent=agent,
+                method=method,
+                proxy_path=proxy_path,
+                provider=provider,
+                intent=intent,
+                body=body,
+                request_id=request_id,
+                start=start,
+            )
+
         try:
             resp = await self._client.request(
                 method=method,
@@ -356,6 +409,21 @@ class ReverseProxy:
                 latency_ms=latency,
                 request_id=request_id,
             )
+
+            # Semantic Poka-yoke: validate upstream response before returning
+            semantic_block = await self._semantic_intercept(
+                response_body=resp.content,
+                provider=provider,
+                path=proxy_path,
+                method=method,
+                content_type=resp.headers.get("content-type", ""),
+                agent=agent,
+                intent=intent,
+                request_id=request_id,
+                start=start,
+            )
+            if semantic_block is not None:
+                return semantic_block
 
             resp_headers = {
                 k: v
@@ -393,6 +461,283 @@ class ReverseProxy:
                 status_code=502,
                 media_type="application/json",
             )
+
+    async def _forward_request_streaming(
+        self,
+        *,
+        target_url: str,
+        forward_headers: dict,
+        agent: dict[str, Any],
+        method: str,
+        proxy_path: str,
+        provider: str,
+        intent: IntentResult,
+        body: bytes,
+        request_id: str,
+        start: float,
+    ) -> Response:
+        """Forward with per-chunk semantic validation via httpx streaming.
+
+        Chunks are validated as they arrive.  If a violation with mode=enforce
+        is detected, the stream is terminated and an error chunk is injected
+        so the client knows the response was cut short.
+
+        After the stream ends (or is terminated), a post-hoc finalize() runs
+        deferred checks (numeric_range, json_path) and logs the result.
+        """
+        assert self._semantic is not None
+
+        try:
+            async with self._client.stream(
+                method=method,
+                url=target_url,
+                headers=forward_headers,
+                content=body if body else None,
+            ) as resp:
+                content_type = resp.headers.get("content-type", "")
+                resp_headers = {
+                    k: v
+                    for k, v in resp.headers.items()
+                    if k.lower() not in _EXCLUDED_RESPONSE_HEADERS
+                }
+
+                sv = StreamingValidator(
+                    rules=self._semantic.rules,
+                    provider=provider,
+                    path=proxy_path,
+                    method=method,
+                )
+
+                async def _validated_stream():
+                    """Yield validated chunks; inject error terminator on violation."""
+                    try:
+                        async for chunk in resp.aiter_bytes():
+                            check = sv.feed(chunk)
+                            if check.should_terminate:
+                                # Inject error terminator for the client
+                                enforced = [v for v in check.violations if v.mode == "enforce"]
+                                error_payload = json.dumps({
+                                    "error": "semantic_violation_stream",
+                                    "detail": "Stream terminated by Semantic Poka-yoke",
+                                    "violations": [
+                                        {
+                                            "rule": v.rule_name,
+                                            "severity": v.severity,
+                                            "description": v.description,
+                                        }
+                                        for v in enforced
+                                    ],
+                                    "request_id": request_id,
+                                })
+                                yield (b"\n" + error_payload.encode("utf-8"))
+                                return
+                            yield chunk
+                    finally:
+                        # Post-hoc audit: finalize deferred checks
+                        final = sv.finalize()
+                        latency = (time.perf_counter() - start) * 1000
+
+                        decision = "allow"
+                        deny_reason = None
+                        if sv.terminated:
+                            decision = "deny"
+                            enforced = [v for v in final.violations if v.mode == "enforce"]
+                            if enforced:
+                                deny_reason = (
+                                    f"Semantic Poka-yoke (stream): "
+                                    f"{enforced[0].rule_name} — {enforced[0].description}"
+                                )
+                        elif not final.passed:
+                            # Post-hoc found violations that weren't caught per-chunk
+                            decision = "deny"
+                            enforced = [v for v in final.violations if v.mode == "enforce"]
+                            if enforced:
+                                deny_reason = (
+                                    f"Semantic Poka-yoke (post-hoc): "
+                                    f"{enforced[0].rule_name} — {enforced[0].description}"
+                                )
+
+                        if final.violations:
+                            for v in final.violations:
+                                logger.warning(
+                                    f"[{request_id}] SEMANTIC_STREAM_{v.mode.upper()} "
+                                    f"{method} {provider}:{proxy_path} "
+                                    f"| agent={agent['name']} | rule={v.rule_name}"
+                                )
+                            if self._webhook:
+                                await self._webhook.notify(
+                                    "semantic_violation",
+                                    {
+                                        "agent_id": agent["agent_id"],
+                                        "agent_name": agent["name"],
+                                        "method": method,
+                                        "path": proxy_path,
+                                        "provider": provider,
+                                        "streaming": True,
+                                        "terminated": sv.terminated,
+                                        "violations": [
+                                            {"rule": v.rule_name, "severity": v.severity, "mode": v.mode}
+                                            for v in final.violations
+                                        ],
+                                        "request_id": request_id,
+                                    },
+                                )
+
+                        await self._audit.log(
+                            agent_id=agent["agent_id"],
+                            agent_name=agent["name"],
+                            method=method,
+                            path=proxy_path,
+                            provider=provider,
+                            decision=decision,
+                            deny_reason=deny_reason,
+                            intent=intent.intent_type,
+                            intent_confidence=intent.confidence,
+                            status_code=resp.status_code,
+                            latency_ms=latency,
+                            request_id=request_id,
+                        )
+
+                logger.info(
+                    f"[{request_id}] STREAM {method} {provider}:{proxy_path} "
+                    f"-> {resp.status_code} | agent={agent['name']} | risk=stream"
+                )
+
+                return StreamingResponse(
+                    content=_validated_stream(),
+                    status_code=resp.status_code,
+                    headers=resp_headers,
+                    media_type=content_type,
+                )
+
+        except httpx.RequestError as exc:
+            latency = (time.perf_counter() - start) * 1000
+            logger.error(
+                f"[{request_id}] STREAM ERROR {method} {provider}:{proxy_path}: {exc}"
+            )
+            await self._audit.log(
+                agent_id=agent["agent_id"],
+                agent_name=agent["name"],
+                method=method,
+                path=proxy_path,
+                provider=provider,
+                decision="error",
+                deny_reason=f"proxy_error: {exc}",
+                intent=intent.intent_type,
+                intent_confidence=intent.confidence,
+                status_code=502,
+                latency_ms=latency,
+                request_id=request_id,
+            )
+            return Response(
+                content=json.dumps({"error": "proxy_error", "detail": str(exc)}),
+                status_code=502,
+                media_type="application/json",
+            )
+
+    async def _semantic_intercept(
+        self,
+        *,
+        response_body: bytes,
+        provider: str,
+        path: str,
+        method: str,
+        content_type: str,
+        agent: dict[str, Any],
+        intent: IntentResult,
+        request_id: str,
+        start: float,
+    ) -> Response | None:
+        """Run semantic validation on a response. Returns a 451 response if blocked, None if OK."""
+        if self._semantic is None:
+            return None
+
+        result: SemanticResult = await self._semantic.validate(
+            response_body=response_body,
+            provider=provider,
+            path=path,
+            method=method,
+            content_type=content_type,
+        )
+
+        if not result.violations:
+            return None
+
+        # Log all violations (both enforce and audit)
+        for v in result.violations:
+            logger.warning(
+                f"[{request_id}] SEMANTIC_{v.mode.upper()} "
+                f"{method} {provider}:{path} | agent={agent['name']} "
+                f"| rule={v.rule_name} | severity={v.severity} "
+                f"| match={v.matched_content}"
+            )
+
+        # Notify webhooks
+        if self._webhook:
+            await self._webhook.notify(
+                "semantic_violation",
+                {
+                    "agent_id": agent["agent_id"],
+                    "agent_name": agent["name"],
+                    "method": method,
+                    "path": path,
+                    "provider": provider,
+                    "violations": [
+                        {
+                            "rule": v.rule_name,
+                            "severity": v.severity,
+                            "mode": v.mode,
+                            "description": v.description,
+                        }
+                        for v in result.violations
+                    ],
+                    "request_id": request_id,
+                },
+            )
+
+        # If passed=True, all violations are audit-only → don't block
+        if result.passed:
+            return None
+
+        # Block: at least one enforced violation
+        latency = (time.perf_counter() - start) * 1000
+        enforced = [v for v in result.violations if v.mode == "enforce"]
+        await self._audit.log(
+            agent_id=agent["agent_id"],
+            agent_name=agent["name"],
+            method=method,
+            path=path,
+            provider=provider,
+            decision="deny",
+            deny_reason=f"Semantic Poka-yoke: {enforced[0].rule_name} — {enforced[0].description}",
+            intent=intent.intent_type,
+            intent_confidence=intent.confidence,
+            status_code=451,
+            latency_ms=latency,
+            request_id=request_id,
+        )
+
+        body = json.dumps({
+            "error": "semantic_violation",
+            "detail": "Response blocked by Semantic Poka-yoke — business rule violation detected",
+            "violations": [
+                {
+                    "rule": v.rule_name,
+                    "severity": v.severity,
+                    "description": v.description,
+                    "check_type": v.check_type,
+                }
+                for v in enforced
+            ],
+            "request_id": request_id,
+            "validation_latency_ms": round(result.latency_ms, 2),
+        })
+        # HTTP 451: Unavailable For Legal Reasons — fits "content blocked by policy"
+        return Response(
+            content=body,
+            status_code=451,
+            media_type="application/json",
+        )
 
     async def close(self) -> None:
         """Shut down the underlying HTTP client."""

@@ -1,0 +1,117 @@
+# Semantic Poka-yoke — Default Rules
+# These rules validate API *responses* before they reach the AI agent.
+# Two modes: "enforce" (block response) / "audit" (log only)
+
+rules:
+  # ── PII / Sensitive Data Leakage ─────────────────────────────────
+  - name: pii_credit_card
+    description: "Block responses containing credit card numbers"
+    severity: critical
+    mode: enforce
+    violation_message: "Response contains credit card number — blocked to prevent data leakage"
+    checks:
+      - type: regex
+        pattern: '\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13}|6(?:011|5[0-9]{2})[0-9]{12})\b'
+        description: "Visa/Mastercard/Amex/Discover card number pattern"
+
+  - name: pii_ssn
+    description: "Block responses containing US Social Security Numbers"
+    severity: critical
+    mode: enforce
+    violation_message: "Response contains SSN-like pattern — blocked to prevent PII leakage"
+    checks:
+      - type: regex
+        pattern: '\b\d{3}-\d{2}-\d{4}\b'
+        description: "US SSN format (XXX-XX-XXXX)"
+
+  - name: pii_my_number
+    description: "Block responses containing Japanese My Number (個人番号)"
+    severity: critical
+    mode: enforce
+    violation_message: "Response contains My Number pattern — blocked to prevent PII leakage"
+    checks:
+      - type: regex
+        pattern: '\b\d{4}\s?\d{4}\s?\d{4}\b'
+        description: "Japanese My Number format (12 digits)"
+
+  # ── Secret / Credential Leakage ──────────────────────────────────
+  - name: secret_api_key
+    description: "Block responses containing API keys or tokens"
+    severity: critical
+    mode: enforce
+    violation_message: "Response contains API key or secret — blocked to prevent credential leakage"
+    checks:
+      - type: regex
+        pattern: '(?i)(?:api[_-]?key|api[_-]?secret|access[_-]?token|private[_-]?key)\s*[:=]\s*["\x27]?[A-Za-z0-9_\-]{20,}'
+        description: "API key/secret/token assignment pattern"
+      - type: regex
+        pattern: '(?:sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{36,}|xoxb-[0-9]{10,})'
+        description: "Known token prefixes (OpenAI sk-, GitHub ghp_, Slack xoxb-)"
+
+  - name: secret_password_field
+    description: "Audit responses containing password fields with values"
+    severity: high
+    mode: enforce
+    violation_message: "Response contains password value — blocked"
+    checks:
+      - type: regex
+        pattern: '(?i)"password"\s*:\s*"[^"]{1,}"'
+        description: "JSON password field with non-empty value"
+
+  # ── Financial / Amount Guards ────────────────────────────────────
+  - name: amount_upper_bound
+    description: "Alert on responses with unusually large monetary amounts"
+    providers: ["salesforce", "hubspot"]
+    severity: high
+    mode: audit
+    violation_message: "Response contains amount exceeding threshold"
+    checks:
+      - type: numeric_range
+        field_path: "Amount"
+        max_value: 10000000
+        description: "Amount exceeds ¥10M / $10M threshold"
+      - type: numeric_range
+        field_path: "amount"
+        max_value: 10000000
+        description: "Amount field exceeds threshold"
+
+  # ── Confidential Keywords ────────────────────────────────────────
+  - name: confidential_markers
+    description: "Audit responses containing confidentiality markers"
+    severity: medium
+    mode: audit
+    violation_message: "Response contains confidential content markers"
+    checks:
+      - type: keyword
+        pattern: "CONFIDENTIAL,TOP SECRET,INTERNAL ONLY,社外秘,極秘,関係者限り"
+        description: "Confidentiality classification markers"
+
+  # ── SQL / Code Injection in Response ─────────────────────────────
+  - name: response_injection
+    description: "Block responses that contain suspicious executable patterns"
+    severity: high
+    mode: enforce
+    violation_message: "Response contains suspicious executable content"
+    checks:
+      - type: regex
+        pattern: '(?i)<script[^>]*>.*?</script>'
+        description: "Embedded script tags in response"
+      - type: regex
+        pattern: '(?i)(?:DROP\s+TABLE|DELETE\s+FROM|INSERT\s+INTO|UPDATE\s+\w+\s+SET)\s'
+        description: "SQL statement patterns in response body"
+
+  # ── Bulk Data Exfiltration Guard ─────────────────────────────────
+  - name: bulk_records
+    description: "Audit when response contains unusually many records"
+    severity: medium
+    mode: audit
+    violation_message: "Response contains large number of records — potential bulk data exposure"
+    checks:
+      - type: numeric_range
+        field_path: "totalSize"
+        max_value: 500
+        description: "Salesforce totalSize > 500 records"
+      - type: numeric_range
+        field_path: "total"
+        max_value: 500
+        description: "Generic total > 500 records"

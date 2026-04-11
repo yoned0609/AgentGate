@@ -22,6 +22,10 @@ class Settings(BaseSettings):
     # Audit
     audit_db_path: str = "audit.db"
 
+    # Semantic Poka-yoke
+    semantic_rules_dir: str = "semantic_rules"
+    streaming_validation: bool = False  # Enable per-chunk streaming validation
+
     # CORS
     cors_origins: str = "http://localhost:3000,http://localhost:3001"
 

@@ -35,6 +35,7 @@ from .policy_builder import PolicyBuildRequest, build_policy
 from .mcp.annotations import tools_to_policy
 from .mcp.proxy import MCPAuthProxy
 from .proxy import ReverseProxy
+from .semantic_rules import SemanticValidator, SemanticRule, PatternCheck, CheckType, RuleMode, LLMCheck
 from .webhook import AlertThreshold, WebhookConfig, WebhookNotifier
 from .workflow import WorkflowEngine, WorkflowRule
 
@@ -72,12 +73,15 @@ l3_manager = L3EscalationManager(webhook_notifier=webhook_notifier)
 intent_analyzer = IntentAnalyzer(l3_callback=l3_manager.escalate)
 analytics_engine = AnalyticsEngine(db_path=settings.audit_db_path)
 workflow_engine = WorkflowEngine()
+semantic_validator = SemanticValidator(rules_dir=settings.semantic_rules_dir)
 reverse_proxy = ReverseProxy(
     policy_engine=policy_engine,
     audit_logger=audit_logger,
     intent_analyzer=intent_analyzer,
     webhook_notifier=webhook_notifier,
     workflow_engine=workflow_engine,
+    semantic_validator=semantic_validator,
+    streaming_enabled=settings.streaming_validation,
 )
 
 
@@ -89,6 +93,7 @@ async def lifespan(app: FastAPI):
     logger.info(f"Providers: {providers}")
     logger.info(f"Policies loaded: {policy_engine.policy_names}")
     logger.info(f"Agents registered: {agent_store.count}")
+    logger.info(f"Semantic rules loaded: {len(semantic_validator.rules)}")
     yield
     await reverse_proxy.close()
     await webhook_notifier.close()
@@ -542,6 +547,95 @@ async def add_workflow_rule(
 async def get_workflow_alerts(_=Depends(_require_master)):
     """View workflow-level alerts (non-blocking detections)."""
     return {"alerts": workflow_engine.alerts}
+
+
+# ── Semantic Poka-yoke (master key required) ─────────────────────────
+
+@app.get("/semantic/rules")
+async def get_semantic_rules(_=Depends(_require_master)):
+    """List all loaded semantic validation rules."""
+    return {
+        "rules": [
+            {
+                "name": r.name,
+                "description": r.description,
+                "providers": r.providers,
+                "path_patterns": r.path_patterns,
+                "methods": r.methods,
+                "mode": r.mode.value,
+                "severity": r.severity,
+                "checks_count": len(r.checks),
+                "llm_enabled": r.llm_check.enabled,
+            }
+            for r in semantic_validator.rules
+        ],
+        "stats": semantic_validator.stats,
+    }
+
+
+@app.post("/semantic/rules")
+async def add_semantic_rule(
+    request: Request,
+    _=Depends(_require_master),
+):
+    """Add a semantic validation rule at runtime.
+
+    Body: {"name": "...", "description": "...", "providers": [...],
+           "path_patterns": [...], "methods": [...],
+           "checks": [{"type": "regex|keyword|numeric_range|json_path", ...}],
+           "mode": "enforce|audit", "severity": "critical|high|medium|low",
+           "violation_message": "..."}
+    """
+    body = await request.json()
+
+    checks = []
+    for c in body.get("checks", []):
+        checks.append(PatternCheck(
+            check_type=CheckType(c.get("type", "keyword")),
+            pattern=c.get("pattern", ""),
+            field_path=c.get("field_path", ""),
+            min_value=c.get("min_value"),
+            max_value=c.get("max_value"),
+            forbidden_values=c.get("forbidden_values", []),
+            description=c.get("description", ""),
+        ))
+
+    llm_raw = body.get("llm_check", {})
+    llm_check = LLMCheck(
+        enabled=llm_raw.get("enabled", False),
+        prompt_template=llm_raw.get("prompt_template", ""),
+        threshold=llm_raw.get("threshold", 0.8),
+        max_tokens=llm_raw.get("max_tokens", 100),
+    )
+
+    rule = SemanticRule(
+        name=body.get("name", "custom_rule"),
+        description=body.get("description", ""),
+        providers=body.get("providers", []),
+        path_patterns=body.get("path_patterns", []),
+        methods=body.get("methods", []),
+        checks=checks,
+        llm_check=llm_check,
+        mode=RuleMode(body.get("mode", "enforce")),
+        severity=body.get("severity", "high"),
+        violation_message=body.get("violation_message", "Semantic rule violation"),
+    )
+    semantic_validator.add_rule(rule)
+    return {"status": "added", "rule": rule.name, "mode": rule.mode.value}
+
+
+@app.delete("/semantic/rules/{rule_name}")
+async def delete_semantic_rule(rule_name: str, _=Depends(_require_master)):
+    """Remove a semantic rule by name."""
+    if semantic_validator.remove_rule(rule_name):
+        return {"status": "deleted", "rule": rule_name}
+    raise HTTPException(status_code=404, detail=f"Semantic rule '{rule_name}' not found")
+
+
+@app.get("/semantic/stats")
+async def get_semantic_stats(_=Depends(_require_master)):
+    """Get semantic validation statistics."""
+    return semantic_validator.stats
 
 
 # ── MCP Auth Proxy ───────────────────────────────────────────────────
